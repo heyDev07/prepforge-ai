@@ -1,0 +1,32 @@
+[
+  {
+    "id": "case-01",
+    "jd": "Senior Backend Engineer, Fleet Platform — Acme Robotics\nBerlin, Germany or remote within the EU\n\nAbout the role\nAcme Robotics builds autonomous mobile robots for warehouses. The Fleet Platform team owns the services that assign tasks to thousands of robots in real time.\n\nWhat you will do\n- Design, build and operate Node.js services that coordinate robot fleets\n- Own the reliability of event-driven systems built on Kafka\n- Improve latency and throughput of our task-assignment APIs\n- Review code and mentor other engineers on the team\n\nRequirements\n- 5+ years of professional backend development experience\n- Strong TypeScript and Node.js skills\n- Experience designing relational schemas and tuning queries in PostgreSQL\n- Experience with event-driven architectures and message brokers such as Kafka\n- Experience running services in production on Kubernetes\n- Clear written communication, including design documents\n- A track record of mentoring engineers\n\nNice to have\n- Experience with Go\n- Background in robotics, warehouse automation or logistics\n\nWe offer 30 days of paid leave, a learning budget and hardware of your choice.\n",
+    "company_url": "http://localhost:4010",
+    "days": 5
+  },
+  {
+    "id": "case-02",
+    "jd": "Frontend Engineer (React) at Lumen Cloud — Remote\n\nLumen Cloud runs managed PostgreSQL for startups. You will build the dashboard our customers use to create databases, inspect slow queries and manage backups.\n\nResponsibilities\n- Build accessible, responsive UI features in React and TypeScript\n- Work with designers to turn Figma designs into reusable components\n- Write unit and end-to-end tests for the dashboard\n\nYou have\n- 3+ years of experience building web applications with React\n- Solid TypeScript and modern CSS skills\n- Experience with web accessibility (WCAG)\n- Experience testing frontend code with tools such as Jest, Testing Library or Playwright\n- Comfortable collaborating closely with designers and backend engineers\n\nBonus points\n- Experience with data visualisation libraries such as D3\n- Familiarity with PostgreSQL\n",
+    "company_url": "http://localhost:4014",
+    "days": 3
+  },
+  {
+    "id": "case-03",
+    "jd": "Northwind Payments is hiring a Backend Developer.\nYou should know Python and SQL.\n",
+    "company_url": "http://localhost:4011",
+    "days": 1
+  },
+  {
+    "id": "case-04",
+    "jd": "Engineering Manager, Patient Experience — Brightpath Health (Lisbon, hybrid)\n\nBrightpath Health makes scheduling software for outpatient clinics. We are looking for an Engineering Manager to lead the team that builds patient booking and reminders.\n\nIn this role you will\n- Lead, coach and grow a team of six engineers\n- Run hiring for the team and help new engineers onboard\n- Partner with product managers and clinicians to plan the roadmap\n- Keep delivery predictable and communicate progress to stakeholders\n\nWhat we are looking for\n- At least 2 years of experience managing software engineers\n- Experience giving regular, actionable feedback and running performance reviews\n- Excellent stakeholder communication, including explaining technical trade-offs to non-technical colleagues\n- Experience resolving conflict within a team\n- A hands-on background as a software engineer\n\nPreferred\n- Experience in healthcare or another regulated industry\n- Fluency in Portuguese\n",
+    "company_url": "http://localhost:4012",
+    "days": 7
+  },
+  {
+    "id": "case-05",
+    "jd": "Data Engineer — Harbor Logistics, Rotterdam\n\nHarbor Logistics builds software that freight forwarders use to quote, book and track ocean and air shipments.\n\nResponsibilities\n- Build and maintain batch and streaming data pipelines for shipment tracking events\n- Model data in our warehouse to support pricing and on-time delivery reporting\n- Work with operations teams to define data quality checks\n\nRequirements\n- 3+ years of experience as a data engineer\n- Strong SQL and Python\n- Experience with Apache Airflow or a similar orchestration tool\n- Experience with a cloud data warehouse such as BigQuery or Snowflake\n- Understanding of freight forwarding or supply chain operations\n- Knowledge of customs and trade documentation (e.g. bills of lading)\n- Ability to explain data findings to non-technical operations teams\n\nIt is a plus if you have experience with Kafka.\n",
+    "company_url": "http://localhost:4015",
+    "days": 14
+  }
+]

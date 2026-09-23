@@ -19,7 +19,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "mock-sites": "tsx scripts/serve-mock-sites.ts",
-    "check:llm": "tsx scripts/check-llm.ts"
+    "check:llm": "tsx scripts/check-llm.ts",
+    "evaluate:demo": "tsx scripts/evaluate-demo.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
