@@ -64,6 +64,7 @@ const EnvSchema = z.object({
   MAX_PAGE_BYTES: int(1_000_000, 10_000, 20_000_000),
   MAX_CONCURRENCY: int(2, 1, 16),
   MAX_RETRIES: int(3, 0, 10),
+  CRAWL_DELAY_MS: int(200, 0, 10_000),
   ALLOW_PRIVATE_URLS: bool(false),
   CRAWLER_USER_AGENT: optionalString,
 
@@ -94,6 +95,8 @@ export interface PipelineConfig {
     maxPageBytes: number;
     maxConcurrency: number;
     maxRetries: number;
+    /** Minimum spacing between requests to the company site (robots.txt Crawl-delay wins). */
+    crawlDelayMs: number;
     /** Permit localhost/private-network targets. Off for the web app; the evaluator turns it on. */
     allowPrivateUrls: boolean;
     userAgent: string;
@@ -154,6 +157,7 @@ export function loadPipelineConfig(
       maxPageBytes: e.MAX_PAGE_BYTES,
       maxConcurrency: e.MAX_CONCURRENCY,
       maxRetries: e.MAX_RETRIES,
+      crawlDelayMs: e.CRAWL_DELAY_MS,
       allowPrivateUrls: e.ALLOW_PRIVATE_URLS,
       userAgent: e.CRAWLER_USER_AGENT ?? DEFAULT_USER_AGENT,
     },

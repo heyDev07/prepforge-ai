@@ -1,5 +1,6 @@
 import { AppError } from '@prepforge/shared';
 import type { PipelineConfig } from '../config';
+import { fixtureLlmResponder } from '../testing/fixture-llm';
 import { GeminiProvider } from './gemini';
 import { LimitedLlmProvider, type LimitedProviderOptions } from './limited-provider';
 import { MockLlmProvider, type MockResponder, type MockScript } from './mock';
@@ -20,7 +21,7 @@ class UnconfiguredLlmProvider implements LlmProvider {
 }
 
 export interface CreateLlmOptions {
-  /** Script for LLM_PROVIDER=mock (tests, offline demos). */
+  /** Script for LLM_PROVIDER=mock; defaults to the deterministic fixture responder. */
   mockScript?: MockScript | MockResponder;
   fetch?: typeof fetch;
   limits?: Partial<LimitedProviderOptions>;
@@ -49,9 +50,8 @@ function createInnerProvider(config: PipelineConfig, options: CreateLlmOptions):
           })
         : new UnconfiguredLlmProvider('gemini', llm.model, 'GEMINI_API_KEY is not set.');
     case 'mock':
-      return options.mockScript
-        ? new MockLlmProvider(options.mockScript)
-        : new UnconfiguredLlmProvider('mock', 'mock', 'LLM_PROVIDER=mock requires a mock script.');
+      // deterministic offline replies derived from the prompt data (tests and offline demos)
+      return new MockLlmProvider(options.mockScript ?? fixtureLlmResponder);
   }
 }
 

@@ -17,6 +17,7 @@ describe('loadPipelineConfig', () => {
       maxPageBytes: 1_000_000,
       maxConcurrency: 2,
       maxRetries: 3,
+      crawlDelayMs: 200,
       allowPrivateUrls: false,
       userAgent: DEFAULT_USER_AGENT,
     });
