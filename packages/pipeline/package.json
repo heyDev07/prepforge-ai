@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@prepforge/shared": "0.1.0",
+    "cheerio": "^1.2.0",
     "zod": "^4.6.5"
   }
 }
