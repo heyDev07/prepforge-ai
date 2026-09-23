@@ -14,7 +14,7 @@ next-env.d.ts
 !.env.example
 
 # test & tooling output
-coverage/
+/coverage/
 .vitest/
 *.log
 
