@@ -16,6 +16,15 @@ const DEFAULT_MODELS: Record<LlmProviderName, string> = {
   mock: 'mock',
 };
 
+/** "OPEN_AI", "OpenAI" and "open-ai" all mean "openai". */
+const normalizeName = (value: unknown) =>
+  typeof value === 'string'
+    ? value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+    : value;
+
 /** Treats empty strings (e.g. `LLM_BASE_URL=`) as "not set". */
 const optionalString = z.preprocess(
   (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
@@ -40,7 +49,7 @@ const bool = (fallback: boolean) =>
 
 const EnvSchema = z.object({
   LLM_PROVIDER: z.preprocess(
-    (value) => (value === undefined || value === '' ? 'openai' : value),
+    (value) => (value === undefined || value === '' ? 'openai' : normalizeName(value)),
     z.enum(LLM_PROVIDERS),
   ),
   LLM_MODEL: optionalString,
@@ -53,7 +62,7 @@ const EnvSchema = z.object({
   LLM_TIMEOUT_MS: int(60_000, 1_000, 600_000),
 
   SEARCH_PROVIDER: z.preprocess(
-    (value) => (value === undefined || value === '' ? 'hn' : value),
+    (value) => (value === undefined || value === '' ? 'hn' : normalizeName(value)),
     z.enum(SEARCH_PROVIDERS),
   ),
   BRAVE_API_KEY: optionalString,

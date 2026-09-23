@@ -40,6 +40,10 @@ describe('loadPipelineConfig', () => {
     expect(gemini.llm.model).toBe('gemini-2.5-flash');
   });
 
+  it.each(['OPEN_AI', 'OpenAI', ' open-ai '])('accepts %j as the openai provider', (value) => {
+    expect(loadPipelineConfig({ LLM_PROVIDER: value }).llm.provider).toBe('openai');
+  });
+
   it('parses numbers and booleans from strings', () => {
     const config = loadPipelineConfig({ MAX_PAGES: '5', ALLOW_PRIVATE_URLS: 'TRUE' });
     expect(config.crawler.maxPages).toBe(5);
