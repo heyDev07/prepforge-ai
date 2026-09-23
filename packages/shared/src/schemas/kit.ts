@@ -7,17 +7,15 @@
  * builds on these schemas.
  */
 import { z } from 'zod';
-import {
-  FLASHCARD_ID_PATTERN,
-  QUESTION_ID_PATTERN,
-  REQUIREMENT_ID_PATTERN,
-} from '../constants';
+import { FLASHCARD_ID_PATTERN, QUESTION_ID_PATTERN, REQUIREMENT_ID_PATTERN } from '../constants';
 import { QUESTION_CATEGORIES, REQUIREMENT_KINDS, REQUIREMENT_PRIORITIES } from '../enums';
 
 const nonEmpty = z.string().trim().min(1);
 const httpUrl = z.url({ protocol: /^https?$/ });
 
-export const RequirementIdSchema = z.string().regex(REQUIREMENT_ID_PATTERN, 'must look like r1, r2, …');
+export const RequirementIdSchema = z
+  .string()
+  .regex(REQUIREMENT_ID_PATTERN, 'must look like r1, r2, …');
 export const QuestionIdSchema = z.string().regex(QUESTION_ID_PATTERN, 'must look like q1, q2, …');
 export const FlashcardIdSchema = z.string().regex(FLASHCARD_ID_PATTERN, 'must look like f1, f2, …');
 

@@ -41,7 +41,11 @@ describe('InternalKitSchema', () => {
 });
 
 describe('PipelineInputSchema', () => {
-  const valid = { jd: 'Backend engineer. Node.js and PostgreSQL required.', company_url: 'https://acme.example', days: 5 };
+  const valid = {
+    jd: 'Backend engineer. Node.js and PostgreSQL required.',
+    company_url: 'https://acme.example',
+    days: 5,
+  };
 
   it('accepts valid input and trims strings', () => {
     const parsed = PipelineInputSchema.parse({ ...valid, company_url: '  https://acme.example  ' });
