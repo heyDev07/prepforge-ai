@@ -22,6 +22,19 @@ export function normalizeForMatch(text: string): string {
     .join(' ');
 }
 
+/**
+ * Framing words that restate a requirement without adding facts ("Proficiency in Python" says
+ * no more than "Python"). They are ignored when checking that wording is faithful to a source.
+ */
+const FRAMING_WORDS = new Set(
+  (
+    'ability able abilities background competence competency deep demonstrated demonstrable ' +
+    'excellent experience experienced expertise familiarity familiar good great hands knowledge ' +
+    'knowing know proficiency proficient skill skills skilled solid strong understanding working ' +
+    'proven track record level advanced basic'
+  ).split(' '),
+);
+
 export function contentTokens(text: string): string[] {
   return normalizeForMatch(text)
     .split(' ')
@@ -40,8 +53,14 @@ export function buildMatchIndex(source: string): MatchIndex {
 }
 
 /** Fraction of the text's content tokens that occur in the source (1 when there are none). */
-export function tokenCoverage(text: string, index: MatchIndex): number {
-  const tokens = contentTokens(text);
+export function tokenCoverage(
+  text: string,
+  index: MatchIndex,
+  options: { ignoreFraming?: boolean } = {},
+): number {
+  const tokens = contentTokens(text).filter(
+    (token) => !options.ignoreFraming || !FRAMING_WORDS.has(token) || index.tokens.has(token),
+  );
   if (tokens.length === 0) return 1;
   return tokens.filter((token) => index.tokens.has(token)).length / tokens.length;
 }

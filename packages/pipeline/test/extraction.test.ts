@@ -179,6 +179,49 @@ describe('postProcessExtraction', () => {
     );
   });
 
+  it('accepts framing words such as "proficiency" around facts from the JD', () => {
+    const result = postProcessExtraction(
+      thinJd,
+      reply({
+        requirements: [
+          {
+            text: 'Proficiency in Python',
+            kind: 'technical',
+            priority: 'must',
+            source_quote: 'You should know Python and SQL.',
+          },
+          {
+            text: 'Knowledge of SQL',
+            kind: 'technical',
+            priority: 'must',
+            source_quote: 'You should know Python and SQL.',
+          },
+        ],
+      }),
+    );
+    expect(result.requirements.map((r) => r.text)).toEqual([
+      'Proficiency in Python',
+      'Knowledge of SQL',
+    ]);
+  });
+
+  it('still replaces wording that adds facts not in the JD', () => {
+    const result = postProcessExtraction(
+      thinJd,
+      reply({
+        requirements: [
+          {
+            text: 'Expert Python with Django and Celery',
+            kind: 'technical',
+            priority: 'must',
+            source_quote: 'You should know Python and SQL.',
+          },
+        ],
+      }),
+    );
+    expect(result.requirements[0]!.text).toBe('You should know Python and SQL.');
+  });
+
   it('removes duplicates', () => {
     const result = postProcessExtraction(
       thinJd,

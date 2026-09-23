@@ -129,7 +129,7 @@ export function postProcessExtraction(jd: string, raw: ExtractionOutput): Extrac
   const seen = new Set<string>();
   const requirements: Requirement[] = [];
   for (const item of located) {
-    const faithful = tokenCoverage(item.raw.text, index) >= 0.6;
+    const faithful = tokenCoverage(item.raw.text, index, { ignoreFraming: true }) >= 0.6;
     const text = truncate(
       collapseWhitespace(faithful ? item.raw.text : item.raw.source_quote),
       200,
