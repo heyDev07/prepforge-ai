@@ -1,0 +1,26 @@
+{
+  "/about": {
+    "failTimes": 2,
+    "failStatus": 503
+  },
+  "/careers": {
+    "status": 500,
+    "body": "Internal Server Error"
+  },
+  "/culture": {
+    "delayMs": 3000
+  },
+  "/handbook": {
+    "bytes": 2000000
+  },
+  "/engineering": {
+    "contentType": "application/pdf",
+    "body": "%PDF-1.4 fake"
+  },
+  "/team": {
+    "redirect": "/team-2"
+  },
+  "/team-2": {
+    "redirect": "/team"
+  }
+}

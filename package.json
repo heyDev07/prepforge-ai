@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tsconfig.scripts.json",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "mock-sites": "tsx scripts/serve-mock-sites.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

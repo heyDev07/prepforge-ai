@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /
+
+User-agent: PrepForgeBot
+Disallow: /careers
+Crawl-delay: 0.05
