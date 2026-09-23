@@ -4,6 +4,7 @@
  * New items get fresh IDs from the kit counters — an ID is never reused.
  */
 import type {
+  InternalFlashcard,
   InternalKit,
   InternalQuestion,
   ItemOrigin,
@@ -12,6 +13,7 @@ import type {
 import { insertAfterCategory } from './order';
 
 export type NewQuestion = Omit<InternalQuestion, 'id' | 'state' | 'origin'>;
+export type NewFlashcard = Omit<InternalFlashcard, 'id' | 'state' | 'origin'>;
 
 function assignIds(
   kit: InternalKit,
@@ -86,5 +88,26 @@ export function replaceGeneratedQuestions(
     },
     added,
     removedIds,
+  };
+}
+
+/** Appends generated flashcards with fresh IDs. */
+export function appendFlashcards(
+  kit: InternalKit,
+  drafts: readonly NewFlashcard[],
+  origin: ItemOrigin = 'generated',
+): { kit: InternalKit; added: InternalFlashcard[] } {
+  let counter = kit.counters.flashcard;
+  const added = drafts.map((draft) => {
+    counter += 1;
+    return { ...draft, id: `f${counter}`, state: 'generated' as const, origin };
+  });
+  return {
+    kit: {
+      ...kit,
+      flashcards: [...kit.flashcards, ...added],
+      counters: { ...kit.counters, flashcard: counter },
+    },
+    added,
   };
 }
