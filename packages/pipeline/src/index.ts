@@ -51,3 +51,4 @@ export * from './editing/project';
 // orchestration
 export * from './cache';
 export * from './run-pipeline';
+export * from './regenerate';
