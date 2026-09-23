@@ -1,0 +1,19 @@
+Frontend Engineer (React) at Lumen Cloud — Remote
+
+Lumen Cloud runs managed PostgreSQL for startups. You will build the dashboard our customers use to create databases, inspect slow queries and manage backups.
+
+Responsibilities
+- Build accessible, responsive UI features in React and TypeScript
+- Work with designers to turn Figma designs into reusable components
+- Write unit and end-to-end tests for the dashboard
+
+You have
+- 3+ years of experience building web applications with React
+- Solid TypeScript and modern CSS skills
+- Experience with web accessibility (WCAG)
+- Experience testing frontend code with tools such as Jest, Testing Library or Playwright
+- Comfortable collaborating closely with designers and backend engineers
+
+Bonus points
+- Experience with data visualisation libraries such as D3
+- Familiarity with PostgreSQL

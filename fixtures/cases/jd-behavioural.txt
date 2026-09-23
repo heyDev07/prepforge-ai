@@ -1,0 +1,20 @@
+Engineering Manager, Patient Experience — Brightpath Health (Lisbon, hybrid)
+
+Brightpath Health makes scheduling software for outpatient clinics. We are looking for an Engineering Manager to lead the team that builds patient booking and reminders.
+
+In this role you will
+- Lead, coach and grow a team of six engineers
+- Run hiring for the team and help new engineers onboard
+- Partner with product managers and clinicians to plan the roadmap
+- Keep delivery predictable and communicate progress to stakeholders
+
+What we are looking for
+- At least 2 years of experience managing software engineers
+- Experience giving regular, actionable feedback and running performance reviews
+- Excellent stakeholder communication, including explaining technical trade-offs to non-technical colleagues
+- Experience resolving conflict within a team
+- A hands-on background as a software engineer
+
+Preferred
+- Experience in healthcare or another regulated industry
+- Fluency in Portuguese

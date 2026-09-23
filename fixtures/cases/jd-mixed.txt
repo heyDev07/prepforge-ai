@@ -1,0 +1,19 @@
+Data Engineer — Harbor Logistics, Rotterdam
+
+Harbor Logistics builds software that freight forwarders use to quote, book and track ocean and air shipments.
+
+Responsibilities
+- Build and maintain batch and streaming data pipelines for shipment tracking events
+- Model data in our warehouse to support pricing and on-time delivery reporting
+- Work with operations teams to define data quality checks
+
+Requirements
+- 3+ years of experience as a data engineer
+- Strong SQL and Python
+- Experience with Apache Airflow or a similar orchestration tool
+- Experience with a cloud data warehouse such as BigQuery or Snowflake
+- Understanding of freight forwarding or supply chain operations
+- Knowledge of customs and trade documentation (e.g. bills of lading)
+- Ability to explain data findings to non-technical operations teams
+
+It is a plus if you have experience with Kafka.

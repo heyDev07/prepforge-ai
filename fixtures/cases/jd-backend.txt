@@ -1,0 +1,26 @@
+Senior Backend Engineer, Fleet Platform — Acme Robotics
+Berlin, Germany or remote within the EU
+
+About the role
+Acme Robotics builds autonomous mobile robots for warehouses. The Fleet Platform team owns the services that assign tasks to thousands of robots in real time.
+
+What you will do
+- Design, build and operate Node.js services that coordinate robot fleets
+- Own the reliability of event-driven systems built on Kafka
+- Improve latency and throughput of our task-assignment APIs
+- Review code and mentor other engineers on the team
+
+Requirements
+- 5+ years of professional backend development experience
+- Strong TypeScript and Node.js skills
+- Experience designing relational schemas and tuning queries in PostgreSQL
+- Experience with event-driven architectures and message brokers such as Kafka
+- Experience running services in production on Kubernetes
+- Clear written communication, including design documents
+- A track record of mentoring engineers
+
+Nice to have
+- Experience with Go
+- Background in robotics, warehouse automation or logistics
+
+We offer 30 days of paid leave, a learning budget and hardware of your choice.
