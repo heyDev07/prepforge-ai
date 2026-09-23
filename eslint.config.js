@@ -26,6 +26,7 @@ export default tseslint.config(
       ],
       '@typescript-eslint/consistent-type-imports': 'error',
       eqeqeq: ['error', 'always'],
+      curly: ['error', 'multi-line'],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },

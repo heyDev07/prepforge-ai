@@ -97,8 +97,9 @@ function parseGroups(text: string): { groups: Group[]; sitemaps: string[] } {
       current.rules.push({ allow: field === 'allow', pattern, regex: patternToRegex(pattern) });
     } else if (field === 'crawl-delay') {
       const seconds = Number(value);
-      if (Number.isFinite(seconds) && seconds >= 0)
+      if (Number.isFinite(seconds) && seconds >= 0) {
         current.crawlDelayMs = Math.round(seconds * 1000);
+      }
     }
   }
   return { groups, sitemaps };
