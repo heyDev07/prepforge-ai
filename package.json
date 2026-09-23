@@ -18,7 +18,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tsconfig.scripts.json",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "mock-sites": "tsx scripts/serve-mock-sites.ts"
+    "mock-sites": "tsx scripts/serve-mock-sites.ts",
+    "check:llm": "tsx scripts/check-llm.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
