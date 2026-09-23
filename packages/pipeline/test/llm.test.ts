@@ -218,6 +218,22 @@ describe('OpenAiProvider', () => {
       .generate(request)
       .catch((e: LlmTransportError) => e);
     expect(quota).toMatchObject({ kind: 'quota_exceeded', retryable: false });
+
+    const noCredit = await make(
+      jsonResponse(
+        {
+          error: {
+            message: 'You have no credits remaining.',
+            type: 'insufficient_quota',
+            code: 'credit_balance_exhausted',
+          },
+        },
+        { status: 429 },
+      ),
+    )
+      .generate(request)
+      .catch((e: LlmTransportError) => e);
+    expect(noCredit).toMatchObject({ kind: 'quota_exceeded', retryable: false });
   });
 
   it('drops temperature for models that reject it', async () => {

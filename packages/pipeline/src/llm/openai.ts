@@ -29,6 +29,18 @@ interface OpenAiErrorBody {
   error?: { message?: string; code?: string | null; param?: string | null; type?: string };
 }
 
+/** Out-of-credit / billing errors also arrive as HTTP 429 but must not be retried. */
+const QUOTA_CODES = new Set([
+  'insufficient_quota',
+  'credit_balance_exhausted',
+  'billing_hard_limit_reached',
+  'billing_not_active',
+]);
+
+function isQuotaError(payload: OpenAiErrorBody): boolean {
+  return payload.error?.type === 'insufficient_quota' || QUOTA_CODES.has(payload.error?.code ?? '');
+}
+
 export class OpenAiProvider implements LlmProvider {
   readonly name = 'openai';
   readonly model: string;
@@ -94,9 +106,7 @@ export class OpenAiProvider implements LlmProvider {
       const payload = (await response.json().catch(() => ({}))) as OpenAiErrorBody;
       const detail = payload.error?.message?.slice(0, 300) ?? `HTTP ${response.status}`;
       let kind = kindForStatus(response.status);
-      if (kind === 'rate_limited' && payload.error?.code === 'insufficient_quota') {
-        kind = 'quota_exceeded';
-      }
+      if (kind === 'rate_limited' && isQuotaError(payload)) kind = 'quota_exceeded';
       // OpenAI sends retry-after-ms (milliseconds) and/or the standard Retry-After header.
       const retryAfterMsHeader = Number(response.headers.get('retry-after-ms'));
       const retryAfterMs =
