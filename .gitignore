@@ -27,3 +27,6 @@ kits.json
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# local design notes
+docs/
