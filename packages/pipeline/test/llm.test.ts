@@ -301,6 +301,35 @@ describe('GeminiProvider', () => {
   });
 });
 
+describe('GeminiProvider thinking level', () => {
+  it('asks for low thinking and drops it for models that reject the setting', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetch = async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string) as { generationConfig: Record<string, unknown> };
+      bodies.push(body.generationConfig);
+      if (body.generationConfig.thinkingConfig) {
+        return jsonResponse(
+          { error: { message: 'Request contains an invalid argument.' } },
+          { status: 400 },
+        );
+      }
+      return jsonResponse({
+        candidates: [{ content: { parts: [{ text: '{}' }] }, finishReason: 'STOP' }],
+      });
+    };
+    const provider = new GeminiProvider({
+      apiKey: 'k',
+      model: 'gemini-lite',
+      timeoutMs: 1_000,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+    });
+    await provider.generate(request);
+    await provider.generate(request);
+    expect(bodies.map((b) => 'thinkingConfig' in b)).toEqual([true, false, false]);
+    expect(bodies[0]!.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+  });
+});
+
 describe('createLlmProvider', () => {
   it('fails each call with LLM_NOT_CONFIGURED when the API key is missing', async () => {
     const llm = createLlmProvider(loadPipelineConfig({ LLM_PROVIDER: 'openai' }));

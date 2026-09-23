@@ -39,6 +39,11 @@ export class GeminiProvider implements LlmProvider {
   readonly name = 'gemini';
   readonly model: string;
   private readonly fetchImpl: typeof fetch;
+  /**
+   * Low thinking keeps structured calls fast and stops hidden reasoning tokens from eating the
+   * output budget. Models that reject the setting get it dropped after the first refusal.
+   */
+  private thinkingSupported = true;
 
   constructor(private readonly options: GeminiOptions) {
     this.model = options.model;
@@ -46,11 +51,23 @@ export class GeminiProvider implements LlmProvider {
   }
 
   async generate(request: LlmRequest): Promise<LlmResponse> {
+    if (!this.thinkingSupported) return this.send(request, false);
+    try {
+      return await this.send(request, true);
+    } catch (error) {
+      if (!(error instanceof LlmTransportError) || error.kind !== 'bad_request') throw error;
+      this.thinkingSupported = false;
+      return this.send(request, false);
+    }
+  }
+
+  private async send(request: LlmRequest, lowThinking: boolean): Promise<LlmResponse> {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(this.model)}:generateContent`;
     const generationConfig: Record<string, unknown> = {};
     if (request.temperature !== undefined) generationConfig.temperature = request.temperature;
     if (request.maxOutputTokens) generationConfig.maxOutputTokens = request.maxOutputTokens;
     if (request.json !== false) generationConfig.responseMimeType = 'application/json';
+    if (lowThinking) generationConfig.thinkingConfig = { thinkingLevel: 'low' };
 
     const timeout = AbortSignal.timeout(this.options.timeoutMs);
     let response: Response;

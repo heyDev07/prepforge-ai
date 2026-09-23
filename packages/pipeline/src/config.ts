@@ -12,7 +12,8 @@ export type SearchProviderName = (typeof SEARCH_PROVIDERS)[number];
 
 const DEFAULT_MODELS: Record<LlmProviderName, string> = {
   openai: 'gpt-4.1-mini',
-  gemini: 'gemini-2.5-flash',
+  // an alias that follows Google's model retirements
+  gemini: 'gemini-flash-lite-latest',
   mock: 'mock',
 };
 
@@ -53,6 +54,8 @@ const EnvSchema = z.object({
     z.enum(LLM_PROVIDERS),
   ),
   LLM_MODEL: optionalString,
+  OPENAI_MODEL: optionalString,
+  GEMINI_MODEL: optionalString,
   LLM_BASE_URL: optionalString,
   OPENAI_API_KEY: optionalString,
   GEMINI_API_KEY: optionalString,
@@ -147,7 +150,15 @@ export function loadPipelineConfig(
   return {
     llm: {
       provider: e.LLM_PROVIDER,
-      model: e.LLM_MODEL ?? DEFAULT_MODELS[e.LLM_PROVIDER],
+      // LLM_MODEL overrides; otherwise the model configured for the selected provider
+      model:
+        e.LLM_MODEL ??
+        (e.LLM_PROVIDER === 'openai'
+          ? e.OPENAI_MODEL
+          : e.LLM_PROVIDER === 'gemini'
+            ? e.GEMINI_MODEL
+            : undefined) ??
+        DEFAULT_MODELS[e.LLM_PROVIDER],
       apiKey,
       baseUrl: e.LLM_BASE_URL,
       maxConcurrency: e.LLM_MAX_CONCURRENCY,

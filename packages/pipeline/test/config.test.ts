@@ -37,7 +37,16 @@ describe('loadPipelineConfig', () => {
     expect(loadPipelineConfig(env).llm.apiKey).toBe('sk-openai');
     const gemini = loadPipelineConfig({ ...env, LLM_PROVIDER: 'gemini' });
     expect(gemini.llm.apiKey).toBe('g-key');
-    expect(gemini.llm.model).toBe('gemini-2.5-flash');
+    expect(gemini.llm.model).toBe('gemini-flash-lite-latest');
+  });
+
+  it('uses the model configured for the selected provider unless LLM_MODEL overrides it', () => {
+    const env = { OPENAI_MODEL: 'gpt-x', GEMINI_MODEL: 'gemini-y' };
+    expect(loadPipelineConfig(env).llm.model).toBe('gpt-x');
+    expect(loadPipelineConfig({ ...env, LLM_PROVIDER: 'gemini' }).llm.model).toBe('gemini-y');
+    expect(loadPipelineConfig({ ...env, LLM_PROVIDER: 'gemini', LLM_MODEL: 'z' }).llm.model).toBe(
+      'z',
+    );
   });
 
   it.each(['OPEN_AI', 'OpenAI', ' open-ai '])('accepts %j as the openai provider', (value) => {
