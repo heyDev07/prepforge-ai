@@ -8,3 +8,4 @@ export * from './schemas/input';
 export * from './schemas/research';
 export * from './schemas/job';
 export * from './schemas/batch';
+export * from './schemas/practice';
