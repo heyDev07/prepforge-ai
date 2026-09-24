@@ -139,6 +139,25 @@ describe('regenerateCompanyBrief', () => {
     expect(replaced.company_brief.summary).not.toBe('My notes about the company.');
   });
 
+  it('moves citation labels written into the prose to the source list', async () => {
+    const llm = new MockLlmProvider({
+      company_brief: JSON.stringify({
+        what_they_do: 'Acme builds warehouse robots (S1).',
+        summary: 'It sells to logistics firms [S1, S2]. Candidates report a take-home [P1][S9].',
+        cited_sources: [],
+      }),
+    });
+    const kit = await regenerateCompanyBrief(base.kit, base.research, { config, llm }, { jd });
+    expect(kit.company_brief.what_they_do).toBe('Acme builds warehouse robots.');
+    expect(kit.company_brief.summary).toMatch(
+      /^It sells to logistics firms\. Candidates report a take-home\./,
+    );
+    expect(kit.company_brief.summary).not.toMatch(/\b[SP]\d\b/);
+    // S1 counts once despite two mentions; P1 and S9 are not sources in this research
+    expect(kit.company_brief.sources).toHaveLength(2);
+    expect(new Set(kit.company_brief.sources).size).toBe(2);
+  });
+
   it('changes only the brief', async () => {
     const kit = updateQuestion(base.kit, base.kit.questions[0]!.id, { prompt: 'Edited?' }).kit;
     const result = await regenerateCompanyBrief(kit, base.research, deps, { jd });

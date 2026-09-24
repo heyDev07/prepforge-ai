@@ -11,6 +11,15 @@ import { callStructured } from '../llm/structured-call';
 import { researchNotes, selectResearchSources } from '../research/excerpts';
 import { collapseWhitespace, truncate } from '../text/sanitize';
 
+/** Source labels the model sometimes writes into prose: "[S2, S3]", "(P1)", "[S1][P2]". */
+const INLINE_CITATIONS = /\s*[([]\s*[SP]\d+(?:\s*[,;]\s*[SP]\d+)*\s*[)\]]/g;
+
+/** Removes inline citation labels from text, returning the labels so they still count. */
+function stripInlineCitations(text: string): { text: string; labels: string[] } {
+  const labels = (text.match(INLINE_CITATIONS) ?? []).flatMap((m) => m.match(/[SP]\d+/g) ?? []);
+  return { text: text.replace(INLINE_CITATIONS, ''), labels };
+}
+
 const BriefOutputSchema = z.object({
   what_they_do: z.string().trim().min(1),
   summary: z.string().trim().min(1),
@@ -60,19 +69,21 @@ export async function generateCompanyBrief(
     signal: options.signal,
   });
 
+  const whatTheyDo = stripInlineCitations(raw.what_they_do);
+  const rawSummary = stripInlineCitations(raw.summary);
   const cited = [
     ...new Set(
-      raw.cited_sources
+      [...raw.cited_sources, ...whatTheyDo.labels, ...rawSummary.labels]
         .map((label) => urlsByLabel.get(label.trim().toUpperCase()))
         .filter((url): url is string => Boolean(url)),
     ),
   ];
   const notes = researchNotes(input.research);
-  const summary = truncate(collapseWhitespace(raw.summary), 2_500);
+  const summary = truncate(collapseWhitespace(rawSummary.text), 2_500);
 
   return {
     brief: {
-      what_they_do: truncate(collapseWhitespace(raw.what_they_do), 800),
+      what_they_do: truncate(collapseWhitespace(whatTheyDo.text), 800),
       summary: notes.length > 0 ? `${summary}\n\nResearch notes: ${notes.join(' ')}` : summary,
       sources: cited,
     },
