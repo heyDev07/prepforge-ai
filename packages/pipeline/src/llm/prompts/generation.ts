@@ -59,7 +59,7 @@ Rules:
 ${countRule}
 2. Each question references 1–3 requirement IDs, copied exactly from the REQUIREMENTS source (for example "r2"). Only reference requirements the question genuinely tests.
 3. Cover the must-have requirements first: every must-have requirement listed should be referenced by at least one question.
-4. "answer_outline": 2–5 short bullet points describing what a strong answer covers, not a full script.
+4. "answer_outline": 2–5 short bullet points describing what a strong answer covers, not a full script. Never write requirement IDs inside the prompt or outline text.
 5. "difficulty": 1 (warm-up), 2 (standard) or 3 (hard), appropriate to the seniority.
 6. Do not repeat or closely paraphrase anything in the EXISTING_QUESTIONS source.
 
@@ -126,7 +126,7 @@ export function flashcardsSystem(mode: 'plan' | 'gap_fill'): string {
 
 Rules:
 ${countRule}
-2. "front": a concise question, prompt or term about a requirement or one of the interview questions.
+2. "front": a concise question, prompt or term that tests knowledge the candidate should be able to explain in the interview (concepts, trade-offs, practices, key facts). Do not merely restate the job description (for example "How many years of experience are required?").
 3. "back": a concise, correct answer in 1–4 sentences. Do not invent facts about the company.
 4. Each flashcard references 1–2 requirement IDs, copied exactly from the REQUIREMENTS source.
 5. No generic flashcards unrelated to the requirements. Do not duplicate anything in EXISTING_FLASHCARDS.

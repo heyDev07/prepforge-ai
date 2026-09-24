@@ -38,9 +38,13 @@ export const RawFlashcardSchema = z.object({
 export const FlashcardsOutputSchema = z.object({ flashcards: z.array(RawFlashcardSchema).max(60) });
 export type RawFlashcard = z.infer<typeof RawFlashcardSchema>;
 
+/** Requirement IDs the model sometimes leaks into prose: "(r5)", "(r1, r2)", "[r3]". */
+const LEAKED_IDS = /\s*[([]\s*r\d+(?:\s*,\s*r\d+)*\s*[)\]]/gi;
+
 function cleanText(text: string, max: number): string {
   return truncate(
     stripInvisible(text)
+      .replace(LEAKED_IDS, '')
       .replace(/[ \t]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
       .trim(),

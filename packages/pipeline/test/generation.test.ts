@@ -103,6 +103,34 @@ describe('sanitising generated references', () => {
   });
 });
 
+describe('leaked requirement IDs', () => {
+  it('removes requirement IDs the model wrote into the text', () => {
+    const [q] = sanitizeQuestions(
+      [
+        {
+          prompt:
+            'Given your background as an engineer (r5) and as a manager (r1, r2), how would you lead [r3] this team?',
+          answer_outline: '- Links management (r1) to delivery',
+          difficulty: 2,
+          requirement_ids: ['r1'],
+        },
+      ],
+      {
+        requirements: [req(1), req(2), req(3), req(5)],
+        allowedKinds: ['technical'],
+        maxLinks: 3,
+        category: 'company-fit',
+        existingPrompts: [],
+        limit: 5,
+      },
+    );
+    expect(q!.prompt).toBe(
+      'Given your background as an engineer and as a manager, how would you lead this team?',
+    );
+    expect(q!.answer_outline).toBe('- Links management to delivery');
+  });
+});
+
 describe('runCoverageLoop', () => {
   const requirements = [req(1), req(2), req(3)];
 

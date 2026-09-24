@@ -9,7 +9,7 @@ Rules:
 3. "source_quote" must be copied verbatim from the job description: one contiguous span of at most 200 characters that supports the requirement.
 4. kind:
    - "technical": languages, frameworks, tools, engineering practices, technical knowledge or experience.
-   - "behavioural": communication, collaboration, leadership, ownership, mentoring and other interpersonal or work-style qualities.
+   - "behavioural": communication, collaboration, leadership, people management, ownership, mentoring and other interpersonal or work-style qualities (including experience managing or leading people, and spoken-language fluency).
    - "domain": industry or business knowledge (for example payments, healthcare, logistics, regulation).
 5. priority: "nice" when the job description marks the item as preferred, a plus, bonus, nice to have, desirable or optional. Otherwise "must".
 6. List distinct requirements separately, but never split one item into near-duplicates.
