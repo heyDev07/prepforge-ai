@@ -290,7 +290,7 @@ Every error has the same shape: `{"error": {"code", "message", "stage", "retryab
 ## 12. Running tests
 
 ```bash
-npm test            # all 392 tests (Vitest)
+npm test            # the full Vitest suite
 npm run typecheck
 npm run lint
 npm run build       # API bundle + Next.js production build
