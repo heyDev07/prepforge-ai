@@ -123,6 +123,20 @@ export async function generatedKit(
   const started = await agent.post(`/api/kits/${id}/generate`);
   if (started.status !== 202) throw new Error(`generate failed: ${started.status} ${started.text}`);
   await harness.jobs.idle();
-  const kit = await agent.get(`/api/kits/${id}`);
-  return kit.body.kit;
+  const kit = await fetchKit(agent, id);
+  if (!kit.kit) {
+    throw new Error(
+      `generation did not produce a kit: ${JSON.stringify(kit.latest_job?.error ?? kit.status)}`,
+    );
+  }
+  return kit;
+}
+
+/** GET /api/kits/:id, failing loudly with the status and body if the request did not succeed. */
+export async function fetchKit(agent: supertest.Agent, id: string) {
+  const response = await agent.get(`/api/kits/${id}`);
+  if (response.status !== 200) {
+    throw new Error(`GET /api/kits/${id} returned ${response.status}: ${response.text}`);
+  }
+  return response.body.kit;
 }

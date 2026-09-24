@@ -1,5 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { generatedKit, signedInAgent, startHarness, type Harness } from './support/harness';
+import {
+  fetchKit,
+  generatedKit,
+  signedInAgent,
+  startHarness,
+  type Harness,
+} from './support/harness';
 
 let h: Harness;
 beforeAll(async () => {
@@ -161,7 +167,7 @@ describe('regeneration', () => {
       difficulty: 2,
       requirement_ids: ['r2'],
     });
-    const before = (await agent.get(`/api/kits/${kit.id}`)).body.kit;
+    const before = await fetchKit(agent, kit.id);
 
     const started = await agent.post(`/api/kits/${kit.id}/regenerate/questions/technical`);
     expect(started.status).toBe(202);
@@ -173,7 +179,7 @@ describe('regeneration', () => {
       category: 'technical',
     });
 
-    const after = (await agent.get(`/api/kits/${kit.id}`)).body.kit;
+    const after = await fetchKit(agent, kit.id);
     const ids = after.kit.questions.map((q: { id: string }) => q.id);
     expect(ids).toEqual(
       expect.arrayContaining([technical[0].id, technical[1].id, mine.body.question.id]),
@@ -207,7 +213,7 @@ describe('regeneration', () => {
     const forced = await agent.post(`/api/kits/${kit.id}/regenerate/company`).send({ force: true });
     expect(forced.status).toBe(202);
     await h.jobs.idle();
-    const after = (await agent.get(`/api/kits/${kit.id}`)).body.kit;
+    const after = await fetchKit(agent, kit.id);
     expect(after.kit.company_brief.state).toBe('generated');
     expect(after.kit.company_brief.summary).not.toBe('Mine.');
     expect(after.kit.questions).toEqual(kit.kit.questions);
