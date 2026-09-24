@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -10,7 +11,7 @@ export default tseslint.config(
       '**/.next/**',
       '**/coverage/**',
       'fixtures/mock-sites/**',
-      'apps/web/**',
+      'apps/web/next-env.d.ts',
     ],
   },
   js.configs.recommended,
@@ -33,5 +34,11 @@ export default tseslint.config(
   {
     files: ['scripts/**/*.ts', '**/test/**/*.ts'],
     rules: { 'no-console': 'off' },
+  },
+  {
+    files: ['apps/web/**/*.{ts,tsx}'],
+    languageOptions: { globals: { ...globals.browser } },
+    plugins: { 'react-hooks': reactHooks },
+    rules: reactHooks.configs.recommended.rules,
   },
 );
