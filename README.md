@@ -329,7 +329,7 @@ npm run evaluate -- --input fixtures/cases/sample-cases.json --output kits.json 
 LLM_PROVIDER=mock npm run evaluate:demo   # or: offline, no key, one command
 ```
 
-A live run of the five sample cases with Gemini's free tier finished in **2 min 14 s** (5/5 ok, every must-have covered).
+Live runs of the five sample cases on Gemini's free tier finished in **2–3.5 minutes** (5/5 ok, every must-have covered, every kit passing the strict schema).
 
 ## 14. Example batch input
 
