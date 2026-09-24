@@ -138,6 +138,9 @@ describe('runPipeline with fixture JDs and mock company sites', () => {
     expect(result.kit.company_brief.summary).toContain('No careers, jobs or hiring page was found');
     expect(result.kit.company_brief.summary).toContain('No public discussion');
     expect(result.research.public_research.status).toBe('not_found');
+    expect(result.notes).toContain(
+      "No public discussion of the company's interview process was found.",
+    );
   });
 
   it('records broken pages but still produces a kit', async () => {

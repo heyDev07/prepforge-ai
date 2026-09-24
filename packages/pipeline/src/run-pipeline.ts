@@ -268,6 +268,11 @@ async function execute(
     deps.search,
     { signal },
   );
+  if (publicResearch.status === 'not_found') {
+    notes.push("No public discussion of the company's interview process was found.");
+  } else if (publicResearch.status === 'unavailable') {
+    notes.push('Public discussion of the interview process could not be searched.');
+  }
   t.complete(
     publicResearch.status === 'found'
       ? `${publicResearch.results.length} relevant discussion(s) found`
