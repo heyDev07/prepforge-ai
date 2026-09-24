@@ -148,6 +148,30 @@ describe('crawlCompanySite', () => {
     );
   });
 
+  it('guesses well-known paths when the homepage links reveal no careers or about page', async () => {
+    // the oversized page has no links at all, like a homepage whose footer was cut off
+    const result = await crawlCompanySite(
+      new URL('/handbook', sites.urls.broken).toString(),
+      // the homepage plus the three guesses; /about's own (broken) links are not followed
+      { ...options, maxPages: 4, maxPageBytes: 50_000 },
+      { http },
+    );
+    const byPath = Object.fromEntries(result.pages.map((p) => [new URL(p.url).pathname, p]));
+    expect(byPath['/about']).toMatchObject({ fetch_status: 'ok', source_type: 'about', depth: 1 });
+    // /careers (HTTP 500) and /jobs (404) were only guesses, so they are not logged as broken
+    expect(byPath['/careers']).toBeUndefined();
+    expect(byPath['/jobs']).toBeUndefined();
+    expect(result.limitations.some((l) => l.includes('could not be fetched'))).toBe(false);
+    expect(result.limitations).toContain(
+      'No careers, jobs or hiring page was found on the company website.',
+    );
+  });
+
+  it('does not guess paths when the homepage already links to careers and about pages', async () => {
+    await crawlCompanySite(sites.urls['acme-careers'], options, { http });
+    expect(sites.hits['acme-careers'].get('/jobs')).toBeUndefined();
+  });
+
   it('resolves relative links and stays on the company site', async () => {
     const result = await crawlCompanySite(sites.urls['relative-links'], options, { http });
     const fetched = paths(result.pages);

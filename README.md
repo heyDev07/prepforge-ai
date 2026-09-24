@@ -442,7 +442,7 @@ Research happens in two separate stages, and both treat everything they fetch as
 1. **Validate the URL:** http(s) only, no credentials, SSRF checks (section 25).
 2. **Fetch `robots.txt`:** 4xx means everything is allowed; 5xx means everything is disallowed (RFC 9309); a network failure means the company is unreachable. Groups naming our bot take precedence over `*`; the longest match wins; `*` and `$` patterns and `Crawl-delay` are supported.
 3. **Fetch the homepage.** If it fails, the case fails with `COMPANY_UNREACHABLE`. Any other page failure is recorded, and the crawl continues.
-4. **Rank links. There are no hard-coded paths such as `/careers`.** Every same-site link is scored:
+4. **Rank links. Discovery is link-driven, not a fixed list of paths.** Every same-site link is scored:
 
    ```
    score = Σ keyword weights in the URL path
@@ -453,7 +453,8 @@ Research happens in two separate stages, and both treat everything they fetch as
 
    Weights: careers 10 · interview 10 · jobs 9 · hiring 9 · about 8 · engineering 8 · work-with-us 8 · culture 7 · join 7 · handbook 7 · company 6 · values 6 · team 5 · blog 3.
 
-5. **Crawl best-first:** fetch the highest-scoring link, add its links to the queue, and repeat until `MAX_PAGES` (12) is reached or nothing within `MAX_DEPTH` (2) scores above 0.
+5. **Fallback for hidden links.** Only when no homepage link leads to a careers or about page (for example, a footer cut off by the 1 MB cap) does the crawler try `/careers`, `/jobs` and `/about` directly. These guesses obey robots.txt and count toward `MAX_PAGES`; a guess that 404s is dropped, not logged as a broken page.
+6. **Crawl best-first:** fetch the highest-scoring link, add its links to the queue, and repeat until `MAX_PAGES` (12) is reached or nothing within `MAX_DEPTH` (2) scores above 0.
 
 **Limits on every request:** 10 s timeout; up to 3 retries for network errors, 429 and 5xx only, with exponential backoff, full jitter and `Retry-After`; HTML only; a 1 MB streamed cap (larger pages are cut at 1 MB, which still holds the title, visible text and navigation, and the cut is noted); at most 5 redirects, each re-checked for SSRF; 2 requests in flight; per-host pacing. Links are resolved relative to the page and `<base href>`, and fragments and tracking parameters are removed. Only the same registrable domain is followed (subdomains allowed); for localhost, host and port must match.
 

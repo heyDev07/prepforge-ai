@@ -4,14 +4,16 @@
  *   1. Fetch robots.txt (4xx → allow all; 5xx → disallow all, per RFC 9309;
  *      unreachable → the company site is unreachable).
  *   2. Fetch the homepage. If that fails the kit cannot be researched → COMPANY_UNREACHABLE.
- *   3. Score every same-site link (link-ranker) and keep a priority frontier.
+ *   3. Score every same-site link (link-ranker) and keep a priority frontier. Only when the
+ *      homepage links lead to no careers or about page (e.g. a footer cut off by the byte
+ *      cap) are the well-known paths /careers, /jobs and /about tried as guesses.
  *   4. Repeatedly fetch the best-scoring links (bounded concurrency, per-host pacing) until
  *      MAX_PAGES is reached or no link within MAX_DEPTH scores above zero.
  *
  * Every page — fetched, failed or disallowed — is recorded so the UI can show honest gaps.
  * One failing page never stops the crawl.
  */
-import { AppError, type ResearchPage } from '@prepforge/shared';
+import { AppError, type ResearchPage, type SourceType } from '@prepforge/shared';
 import { sleep as realSleep, type Sleep } from '../net/backoff';
 import { FetchFailure, isFetchFailure } from '../net/errors';
 import type { HttpClient, HttpRequestOptions } from '../net/http-client';
@@ -65,7 +67,15 @@ interface Candidate {
   depth: number;
   score: number;
   order: number;
+  /** A well-known path nobody linked to; if it fails, it is dropped rather than recorded. */
+  guessed?: boolean;
 }
+
+/** Tried only when no homepage link leads to a page of that type. */
+const WELL_KNOWN_PATHS: ReadonlyArray<readonly [SourceType, string[]]> = [
+  ['careers', ['/careers', '/jobs']],
+  ['about', ['/about']],
+];
 
 const ROBOTS_MAX_BYTES = 512_000;
 
@@ -271,6 +281,7 @@ export async function crawlCompanySite(
       frontier.delete(key);
       visited.add(key);
       if (!robots.isAllowed(candidate.url)) {
+        if (candidate.guessed) continue;
         disallowed++;
         record(candidate.url, candidate.depth, candidate.score, {
           failure: new FetchFailure('robots_disallowed', 'robots.txt disallows this page.'),
@@ -301,6 +312,7 @@ export async function crawlCompanySite(
       addLinks(page.links, candidate.depth + 1);
     } catch (error) {
       if (!isFetchFailure(error)) throw error;
+      if (candidate.guessed) return; // a missing /careers is not a broken page
       record(candidate.url, candidate.depth, candidate.score, { failure: error });
     } finally {
       report();
@@ -308,6 +320,26 @@ export async function crawlCompanySite(
   };
 
   addLinks(homepage.links, 1);
+
+  // fallback: guess well-known paths for page types the homepage links do not lead to
+  if (options.maxDepth >= 1) {
+    const linked = new Set(
+      homepage.links
+        .filter((link) => onSite(link.url) && scoreLink(link, 1).score > 0)
+        .map((link) => classifyPage({ url: link.url, title: link.text, h1: link.title }, false)),
+    );
+    if (linked.has('interview')) linked.add('careers');
+    for (const [type, paths] of WELL_KNOWN_PATHS) {
+      if (linked.has(type)) continue;
+      for (const path of paths) {
+        const url = new URL(path, home);
+        const key = canonicalUrl(url);
+        if (visited.has(key) || frontier.has(key)) continue;
+        const { score } = scoreLink({ url, text: '', title: '' }, 1);
+        frontier.set(key, { url, depth: 1, score, order: order++, guessed: true });
+      }
+    }
+  }
   let attempts = 1; // the homepage
   while (attempts < options.maxPages) {
     if (deps.signal?.aborted) throw deps.signal.reason;
