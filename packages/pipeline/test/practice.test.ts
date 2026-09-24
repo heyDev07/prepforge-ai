@@ -45,10 +45,18 @@ describe('orderPracticeQueue', () => {
     expect(queue.map((e) => e.flashcard.id)).toEqual(['f2', 'f3', 'f1']);
   });
 
-  it('does not repeat the card that was just answered', () => {
-    const queue = orderPracticeQueue(kit(), [attempt('f2', 1, 5)], { now, excludeId: 'f2' });
+  it('does not start with the card that was just answered', () => {
+    const queue = orderPracticeQueue(kit(), [attempt('f2', 1, 5)], { now, lastId: 'f2' });
     expect(queue[0]!.flashcard.id).not.toBe('f2');
     expect(queue.map((e) => e.flashcard.id)).toContain('f2');
+  });
+
+  it('shows each card once per round and then ends the round', () => {
+    const attempts = [attempt('f2', 1, 5)]; // f2 stays the weakest card; f1 supports a must-have
+    expect(
+      orderPracticeQueue(kit(), attempts, { now, answered: ['f2'] }).map((e) => e.flashcard.id),
+    ).toEqual(['f1', 'f3']);
+    expect(orderPracticeQueue(kit(), attempts, { now, answered: ['f1', 'f2', 'f3'] })).toEqual([]);
   });
 
   it('limits weak mode to cards for weak requirements', () => {
@@ -89,6 +97,18 @@ describe('computeWeakSpots', () => {
       confidence: null,
       questions: 0,
     });
+  });
+
+  it('flags any requirement without a flashcard, since it holds readiness down', () => {
+    const noNiceCard = buildKit({
+      requirements: [req(1), req(2, 'domain', 'nice')],
+      questions: [question(1, ['r1']), question(2, ['r2'])],
+      flashcards: [card(1, ['r1'])],
+    });
+    const report = computeWeakSpots(noNiceCard, [attempt('f1', 5, 1)]);
+    expect(report.requirements[1]).toMatchObject({ weak: true, reasons: ['no_flashcard'] });
+    // everything practisable is at 5/5, yet readiness is capped: (2·1 + 1·0) / 3
+    expect(report.readiness).toBe(67);
   });
 
   it('starts at zero readiness before any practice', () => {

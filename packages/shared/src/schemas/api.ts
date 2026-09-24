@@ -160,13 +160,20 @@ export const PracticeBodySchema = z.object({ confidence: ConfidenceSchema });
 
 export const PracticeNextQuerySchema = z.object({
   mode: z.enum(['all', 'weak']).default('all'),
-  exclude: z.string().optional(),
+  /** Comma-separated IDs of cards already answered in this round. */
+  answered: z
+    .string()
+    .optional()
+    .transform((value) => (value ? value.split(',').filter(Boolean).slice(0, 500) : [])),
+  /** The card answered last, so a new round does not start with it. */
+  last: z.string().optional(),
 });
 
 export interface PracticeNextDto {
+  /** Null when every card in this round has been answered (or the mode has no cards). */
   flashcard: InternalFlashcard | null;
   stats: CardStats | null;
-  /** Cards available in this mode. */
+  /** Cards left in this round, including the one returned. */
   remaining: number;
   mode: 'all' | 'weak';
 }

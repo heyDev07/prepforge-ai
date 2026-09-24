@@ -324,7 +324,8 @@ export function kitsRouter(config: ApiConfig, jobs: JobRunner): Router {
     const kit = requireGenerated(doc);
     const queue = orderPracticeQueue(kit, await loadAttempts(doc._id, doc.userId), {
       mode: query.mode,
-      excludeId: query.exclude,
+      answered: query.answered,
+      lastId: query.last,
     });
     const next = queue[0];
     const body: PracticeNextDto = {

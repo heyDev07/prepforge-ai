@@ -52,10 +52,23 @@ describe('practice', () => {
     expect(next.body).toMatchObject({ mode: 'all', remaining: cards.length });
     expect(weakCards).toContain(next.body.flashcard.id);
 
-    const skip = await agent.get(
-      `/api/kits/${kit.id}/practice/next?exclude=${next.body.flashcard.id}`,
-    );
-    expect(skip.body.flashcard.id).not.toBe(next.body.flashcard.id);
+    // a round shows each card once, then ends
+    const answered: string[] = [];
+    let current = next.body;
+    while (current.flashcard) {
+      expect(answered).not.toContain(current.flashcard.id);
+      expect(current.remaining).toBe(cards.length - answered.length);
+      answered.push(current.flashcard.id);
+      current = (
+        await agent.get(`/api/kits/${kit.id}/practice/next?answered=${answered.join(',')}`)
+      ).body;
+    }
+    expect(current).toMatchObject({ flashcard: null, remaining: 0 });
+    expect(answered).toHaveLength(cards.length);
+
+    // the next round does not open with the card answered last
+    const newRound = await agent.get(`/api/kits/${kit.id}/practice/next?last=${answered.at(-1)}`);
+    expect(newRound.body.flashcard.id).not.toBe(answered.at(-1));
 
     const weak = await agent.get(`/api/kits/${kit.id}/practice/next?mode=weak`);
     expect(weak.body.mode).toBe('weak');

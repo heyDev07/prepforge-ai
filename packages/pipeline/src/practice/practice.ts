@@ -4,8 +4,9 @@
  *   card confidence   = exponentially weighted average of ratings (α = 0.5; recent counts more)
  *   card priority     = (5 − confidence) + 0.5 if it supports a must-have + staleness (≤ 1)
  *                       unseen cards count as confidence 2.5
+ *   practice round    = every card in the mode once, weakest first; then the round ends
  *   requirement conf. = mean confidence of its practised cards
- *   weak requirement  = uncovered must-have, must-have without a card, or confidence < 3
+ *   weak requirement  = uncovered must-have, a requirement without a card, or confidence < 3
  *   readiness         = weighted mean of (confidence − 1) / 4 over requirements
  *                       (must-have weight 2, nice weight 1, unpractised = 0) × 100
  */
@@ -72,12 +73,14 @@ export interface QueueEntry {
 export interface QueueOptions {
   /** "weak": only cards linked to weak requirements. */
   mode?: 'all' | 'weak';
-  /** Card just answered — not repeated immediately unless it is the only choice. */
-  excludeId?: string;
+  /** Cards already answered in the current round; they wait for the next round. */
+  answered?: readonly string[];
+  /** Card answered last — not shown first (e.g. at the start of a new round) unless it is the only choice. */
+  lastId?: string;
   now?: Date;
 }
 
-/** Weakest-first practice order. */
+/** Weakest-first order of the cards still to practise in this round (empty = round complete). */
 export function orderPracticeQueue(
   kit: InternalKit,
   attempts: readonly PracticeAttemptRecord[],
@@ -91,6 +94,10 @@ export function orderPracticeQueue(
   if (options.mode === 'weak') {
     const weak = new Set(computeWeakSpots(kit, attempts).weak_requirement_ids);
     cards = cards.filter((card) => card.requirement_ids.some((id) => weak.has(id)));
+  }
+  if (options.answered?.length) {
+    const answered = new Set(options.answered);
+    cards = cards.filter((card) => !answered.has(card.id));
   }
 
   const entries = cards.map((flashcard) => {
@@ -111,7 +118,7 @@ export function orderPracticeQueue(
       a.stats.attempts - b.stats.attempts ||
       Number(a.flashcard.id.slice(1)) - Number(b.flashcard.id.slice(1)),
   );
-  if (options.excludeId && entries.length > 1 && entries[0]!.flashcard.id === options.excludeId) {
+  if (options.lastId && entries.length > 1 && entries[0]!.flashcard.id === options.lastId) {
     entries.push(entries.shift()!);
   }
   return entries;
@@ -132,7 +139,8 @@ export function computeWeakSpots(
     const confidence = mean(practised);
     const reasons: WeakReason[] = [];
     if (uncovered.has(requirement.id)) reasons.push('uncovered');
-    if (requirement.priority === 'must' && cards.length === 0) reasons.push('no_flashcard');
+    // it can never be practised, so it holds readiness down until a card is added
+    if (cards.length === 0) reasons.push('no_flashcard');
     if (confidence !== null && confidence < LOW_CONFIDENCE) reasons.push('low_confidence');
     return {
       id: requirement.id,
