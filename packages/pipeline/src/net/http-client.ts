@@ -24,6 +24,8 @@ export interface HttpRequestOptions {
   signal?: AbortSignal;
 }
 
+type RequestSpec = HttpRequestOptions & { method: 'GET' | 'POST'; body?: string };
+
 export interface HttpResponse {
   /** Final URL after redirects. */
   url: string;
@@ -89,7 +91,24 @@ export class HttpClient {
   }
 
   /** GETs a URL. Throws FetchFailure on any failure (after retries for retryable ones). */
-  async get(rawUrl: string, options: HttpRequestOptions): Promise<HttpResponse> {
+  get(rawUrl: string, options: HttpRequestOptions): Promise<HttpResponse> {
+    return this.request(rawUrl, { ...options, method: 'GET' });
+  }
+
+  /**
+   * POSTs a JSON body (used for search APIs). Same guards as GET; redirects are not followed,
+   * and retrying is only safe because the callers' requests are idempotent searches.
+   */
+  postJson(rawUrl: string, body: unknown, options: HttpRequestOptions): Promise<HttpResponse> {
+    return this.request(rawUrl, {
+      ...options,
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: { 'content-type': 'application/json', ...options.headers },
+    });
+  }
+
+  private async request(rawUrl: string, options: RequestSpec): Promise<HttpResponse> {
     const url = parseHttpUrl(rawUrl);
     return withRetry(() => this.attempt(url, options), {
       maxRetries: options.maxRetries,
@@ -104,7 +123,7 @@ export class HttpClient {
     });
   }
 
-  private async attempt(start: URL, options: HttpRequestOptions): Promise<HttpResponse> {
+  private async attempt(start: URL, options: RequestSpec): Promise<HttpResponse> {
     const timeout = AbortSignal.timeout(options.timeoutMs);
     const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
     const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
@@ -116,7 +135,8 @@ export class HttpClient {
       let response: Response;
       try {
         response = await this.fetchImpl(current, {
-          method: 'GET',
+          method: options.method,
+          body: options.body,
           redirect: 'manual',
           signal,
           headers: {
@@ -132,6 +152,9 @@ export class HttpClient {
       const location = response.headers.get('location');
       if (response.status >= 300 && response.status < 400 && location) {
         await discard(response);
+        if (options.method !== 'GET') {
+          throw new FetchFailure('redirect_error', 'Unexpected redirect for a POST request.');
+        }
         if (hop >= maxRedirects) {
           throw new FetchFailure(
             'redirect_error',

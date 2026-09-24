@@ -15,6 +15,7 @@ export * from './research/company-name';
 export * from './search/factory';
 export * from './search/interview-research';
 export * from './search/provider';
+export * from './search/tavily';
 
 // LLM
 export * from './llm/factory';

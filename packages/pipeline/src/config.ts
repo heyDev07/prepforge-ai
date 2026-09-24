@@ -7,7 +7,7 @@ import { z } from 'zod';
 export const LLM_PROVIDERS = ['openai', 'gemini', 'mock'] as const;
 export type LlmProviderName = (typeof LLM_PROVIDERS)[number];
 
-export const SEARCH_PROVIDERS = ['hn', 'brave', 'none'] as const;
+export const SEARCH_PROVIDERS = ['tavily', 'hn', 'brave', 'none'] as const;
 export type SearchProviderName = (typeof SEARCH_PROVIDERS)[number];
 
 const DEFAULT_MODELS: Record<LlmProviderName, string> = {
@@ -65,10 +65,11 @@ const EnvSchema = z.object({
   LLM_TIMEOUT_MS: int(60_000, 1_000, 600_000),
 
   SEARCH_PROVIDER: z.preprocess(
-    (value) => (value === undefined || value === '' ? 'hn' : normalizeName(value)),
+    (value) => (value === undefined || value === '' ? 'tavily' : normalizeName(value)),
     z.enum(SEARCH_PROVIDERS),
   ),
   BRAVE_API_KEY: optionalString,
+  TAVILY_API_KEY: optionalString,
 
   MAX_PAGES: int(12, 1, 100),
   MAX_DEPTH: int(2, 0, 5),
@@ -99,6 +100,7 @@ export interface PipelineConfig {
   search: {
     provider: SearchProviderName;
     braveApiKey: string | undefined;
+    tavilyApiKey: string | undefined;
   };
   crawler: {
     maxPages: number;
@@ -169,6 +171,7 @@ export function loadPipelineConfig(
     search: {
       provider: e.SEARCH_PROVIDER,
       braveApiKey: e.BRAVE_API_KEY,
+      tavilyApiKey: e.TAVILY_API_KEY,
     },
     crawler: {
       maxPages: e.MAX_PAGES,

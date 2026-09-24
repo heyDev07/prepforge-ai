@@ -157,7 +157,7 @@ Requirements: **Node.js 22+** and **MongoDB 7** (local, Docker or Atlas).
 git clone https://github.com/heyDev07/prepforge-ai.git
 cd prepforge-ai
 npm install
-cp .env.example .env        # then set an LLM key (see section 9)
+cp .env.example .env        # then set an LLM key (section 9) and, for web research, TAVILY_API_KEY
 docker compose up -d mongo  # or point MONGODB_URI at your own MongoDB (section 8)
 
 npm run dev:api             # API  → http://localhost:4000
@@ -180,7 +180,8 @@ All variables live in the repository-root `.env` (template: `.env.example`).
 | `LLM_MAX_CONCURRENCY` | `2` | LLM requests in flight, process-wide |
 | `LLM_REQUESTS_PER_MINUTE` | `60` | Sliding-window request cap (use ~15 on Gemini's free tier) |
 | `LLM_MAX_RETRIES` / `LLM_TIMEOUT_MS` | `4` / `60000` | Transport retries and per-request timeout |
-| `SEARCH_PROVIDER` / `BRAVE_API_KEY` | `hn` / — | `hn` (Hacker News API, no key), `brave`, or `none` |
+| `SEARCH_PROVIDER` | `tavily` | `tavily`, `hn` (Hacker News API, no key), `brave`, or `none`. Without the chosen provider's key, the Hacker News search is used |
+| `TAVILY_API_KEY` / `BRAVE_API_KEY` | — | Search API keys ([Tavily](https://tavily.com) has a free tier of 1,000 credits/month) |
 | `MAX_PAGES` / `MAX_DEPTH` | `12` / `2` | Crawl bounds |
 | `REQUEST_TIMEOUT_MS` / `MAX_PAGE_BYTES` | `10000` / `1000000` | Per-request limits |
 | `MAX_CONCURRENCY` / `MAX_RETRIES` / `CRAWL_DELAY_MS` | `2` / `3` / `200` | Crawl politeness (robots.txt `Crawl-delay` wins) |
@@ -423,8 +424,9 @@ Research happens in two separate stages, and both treat everything they fetch as
 
 1. **Company website** (section 17). Pages are classified by code as `homepage`, `about`, `careers`, `engineering`, `culture`, `interview` or `other`.
 2. **Public interview discussion.** Four queries (`<company> interview process`, `… technical interview`, `… interview questions`, `… hiring process`) go through a `SearchProvider`:
-   - **Default:** the public Hacker News Algolia API, which needs no key and is designed for programmatic use.
-   - **With a key:** Brave Search (`SEARCH_PROVIDER=brave`).
+   - **Default: [Tavily](https://tavily.com)** (`TAVILY_API_KEY`), a web search API built for LLM applications. Each result includes a cleaned excerpt of the page. One basic search costs 1 credit (4 per kit; the free tier is 1,000 credits/month).
+   - **Without a key:** the public Hacker News Algolia API, which needs no key and is designed for programmatic use.
+   - **Alternative:** Brave Search (`SEARCH_PROVIDER=brave`, `BRAVE_API_KEY`).
    - **Relevance:** code keeps a result only if it mentions **both** the company and an interview signal.
    - **Outcome:** the stage returns `found`, an explicit `not_found`, or `unavailable`. Nothing is fabricated.
 
@@ -647,7 +649,7 @@ Every error has one shape: `{ code, message, stage, retryable }`.
 - **JavaScript-rendered sites:** the crawler reads server-rendered HTML only. A single-page app with no server-rendered content yields little research (reported honestly as gaps).
 - **Registrable domain:** "same site" uses a heuristic (last two labels, or three for `co.uk`-style suffixes) rather than the full Public Suffix List.
 - **DNS rebinding:** hostnames are resolved and checked before each request and redirect, but the connection isn't pinned to the checked IP, so a hostile DNS server could in theory switch addresses between the check and the connect.
-- **Public discussion coverage:** the keyless provider searches Hacker News only. Brave Search gives broader results with an API key.
+- **Public discussion coverage:** with a Tavily key the whole web is searched; without one, the fallback searches Hacker News only, so smaller companies usually get "not found".
 - **Single API instance:** the job queue and auth rate limiter are in-process. Scaling to several instances would need a shared queue (e.g. BullMQ) and a shared rate-limit store.
 - **Quote matching** is word-based. A model quote with heavy reformatting can occasionally be rejected, which only makes the requirement list shorter, never invented.
 - **Web build:** `API_URL` is fixed at web build time (a Next.js rewrite property).

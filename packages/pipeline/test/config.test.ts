@@ -22,7 +22,7 @@ describe('loadPipelineConfig', () => {
       userAgent: DEFAULT_USER_AGENT,
     });
     expect(config.pipeline.maxCoveragePasses).toBe(3);
-    expect(config.search.provider).toBe('hn');
+    expect(config.search.provider).toBe('tavily');
   });
 
   it('treats empty values from .env as unset', () => {
