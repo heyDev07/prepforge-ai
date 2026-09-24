@@ -15,7 +15,7 @@
     "evaluate": "tsx scripts/evaluate.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tsconfig.scripts.json",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",
     "mock-sites": "tsx scripts/serve-mock-sites.ts",
