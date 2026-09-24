@@ -3,7 +3,8 @@
  *
  * Every request: validates the URL against the SSRF policy (again on every redirect hop),
  * applies a timeout, follows at most N redirects manually, rejects unexpected content types,
- * streams the body with a hard byte cap and retries only retryable failures
+ * streams the body with a hard byte cap (failing, or with `truncate` keeping the first
+ * `maxBytes`) and retries only retryable failures
  * (network errors, timeouts, 408/429/5xx) with backoff + jitter and Retry-After support.
  */
 import { parseRetryAfter, withRetry, type Sleep } from './backoff';
@@ -20,6 +21,11 @@ export interface HttpRequestOptions {
   policy: UrlPolicy;
   userAgent: string;
   maxRedirects?: number;
+  /**
+   * Keep the first `maxBytes` of an oversized body instead of failing with `too_large`.
+   * Meant for HTML, where a prefix is still readable; structured formats should fail.
+   */
+  truncate?: boolean;
   headers?: Record<string, string>;
   signal?: AbortSignal;
 }
@@ -32,6 +38,8 @@ export interface HttpResponse {
   status: number;
   contentType: string;
   body: string;
+  /** True when the body was cut at `maxBytes` (only with `truncate`). */
+  truncated: boolean;
 }
 
 export interface HttpClientDeps {
@@ -190,16 +198,16 @@ export class HttpClient {
       }
 
       const declared = Number(response.headers.get('content-length'));
-      if (Number.isFinite(declared) && declared > options.maxBytes) {
+      if (Number.isFinite(declared) && declared > options.maxBytes && !options.truncate) {
         await discard(response);
         throw new FetchFailure('too_large', `Response exceeds ${options.maxBytes} bytes.`, {
           httpStatus: response.status,
         });
       }
 
-      let bytes: Uint8Array;
+      let read: { bytes: Uint8Array; truncated: boolean };
       try {
-        bytes = await this.readCapped(response, options.maxBytes);
+        read = await this.readCapped(response, options.maxBytes, options.truncate ?? false);
       } catch (error) {
         if (isFetchFailure(error)) throw error;
         throw this.classifyThrown(error, timeout, options);
@@ -208,26 +216,39 @@ export class HttpClient {
         url: current.toString(),
         status: response.status,
         contentType,
-        body: decode(bytes, contentType),
+        body: decode(read.bytes, contentType),
+        truncated: read.truncated,
       };
     }
   }
 
-  private async readCapped(response: Response, maxBytes: number): Promise<Uint8Array> {
-    if (!response.body) return new Uint8Array();
+  private async readCapped(
+    response: Response,
+    maxBytes: number,
+    truncate: boolean,
+  ): Promise<{ bytes: Uint8Array; truncated: boolean }> {
+    if (!response.body) return { bytes: new Uint8Array(), truncated: false };
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let total = 0;
+    let truncated = false;
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
+      if (total + value.byteLength > maxBytes) {
         await reader.cancel().catch(() => undefined);
-        throw new FetchFailure('too_large', `Response exceeds ${maxBytes} bytes.`, {
-          httpStatus: response.status,
-        });
+        if (!truncate) {
+          throw new FetchFailure('too_large', `Response exceeds ${maxBytes} bytes.`, {
+            httpStatus: response.status,
+          });
+        }
+        // a multi-byte character cut at the boundary decodes as U+FFFD, which is harmless
+        chunks.push(value.subarray(0, maxBytes - total));
+        total = maxBytes;
+        truncated = true;
+        break;
       }
+      total += value.byteLength;
       chunks.push(value);
     }
     const bytes = new Uint8Array(total);
@@ -236,7 +257,7 @@ export class HttpClient {
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    return bytes;
+    return { bytes, truncated };
   }
 
   private classifyThrown(error: unknown, timeout: AbortSignal, options: HttpRequestOptions): Error {

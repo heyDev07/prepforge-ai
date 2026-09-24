@@ -69,8 +69,13 @@ interface Candidate {
 
 const ROBOTS_MAX_BYTES = 512_000;
 
+/** "HTTP 503" for HTTP errors, otherwise the kind of failure ("timeout", "bad content type"). */
+function describeFailure(status: string, httpStatus: number | null): string {
+  return status === 'http_error' && httpStatus ? `HTTP ${httpStatus}` : status.replace(/_/g, ' ');
+}
+
 function summarizeFailure(failure: FetchFailure): string {
-  return failure.httpStatus ? `HTTP ${failure.httpStatus}` : failure.status.replace(/_/g, ' ');
+  return describeFailure(failure.status, failure.httpStatus);
 }
 
 export async function crawlCompanySite(
@@ -86,6 +91,9 @@ export async function crawlCompanySite(
     expect,
     timeoutMs: options.requestTimeoutMs,
     maxBytes: options.maxPageBytes,
+    // real homepages can be several MB of inline scripts and styles; the first
+    // `maxPageBytes` still hold the title, visible text and most navigation links
+    truncate: true,
     maxRetries: options.maxRetries,
     userAgent: options.userAgent,
     policy: options.policy,
@@ -140,7 +148,9 @@ export async function crawlCompanySite(
       maxBytes: ROBOTS_MAX_BYTES,
       maxRetries: Math.min(1, options.maxRetries),
     });
-    robots = parseRobots(response.body, options.userAgent);
+    // RFC 9309 §2.5: parse at least the first 500 KiB; drop a rule cut off at the limit
+    const body = response.truncated ? response.body.replace(/[^\n]*$/, '') : response.body;
+    robots = parseRobots(body, options.userAgent);
     robotsStatus = 'found';
   } catch (error) {
     if (!isFetchFailure(error)) throw error;
@@ -201,11 +211,13 @@ export async function crawlCompanySite(
 
   let home: URL;
   let homepage: ExtractedPage;
+  let truncated = 0;
   try {
     await pacing.take();
     const response = await deps.http.get(start.toString(), request('html'));
     home = new URL(response.url);
     homepage = extractPage(response.body, response.url);
+    if (response.truncated) truncated++;
   } catch (error) {
     if (!isFetchFailure(error)) throw error;
     if (error.status === 'blocked_url') {
@@ -284,6 +296,7 @@ export async function crawlCompanySite(
         visited.add(finalKey);
       }
       const page = extractPage(response.body, response.url);
+      if (response.truncated) truncated++;
       record(finalUrl, candidate.depth, candidate.score, { page, isHome: false });
       addLinks(page.links, candidate.depth + 1);
     } catch (error) {
@@ -319,14 +332,13 @@ export async function crawlCompanySite(
     limitations.push('No about or company page was found on the company website.');
   }
   if (failed.length > 0) {
-    const reasons = [
-      ...new Set(
-        failed.map((p) =>
-          p.http_status ? `HTTP ${p.http_status}` : p.fetch_status.replace(/_/g, ' '),
-        ),
-      ),
-    ];
+    const reasons = [...new Set(failed.map((p) => describeFailure(p.fetch_status, p.http_status)))];
     limitations.push(`${failed.length} page(s) could not be fetched (${reasons.join(', ')}).`);
+  }
+  if (truncated > 0) {
+    limitations.push(
+      `${truncated} page(s) were larger than ${options.maxPageBytes} bytes; only the first ${options.maxPageBytes} bytes were read.`,
+    );
   }
   if (disallowed > 0) {
     limitations.push(`robots.txt disallowed ${disallowed} relevant page(s), which were skipped.`);

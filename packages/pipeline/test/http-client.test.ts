@@ -152,6 +152,17 @@ describe('HttpClient', () => {
     );
   });
 
+  it('keeps the first maxBytes of an oversized body when asked to truncate', async () => {
+    const { http } = client();
+    const options = { ...baseOptions, truncate: true };
+    const declared = await http.get(`${server.url}/declared-large`, options);
+    expect(declared).toMatchObject({ truncated: true, body: 'x'.repeat(10_000) });
+    const streamed = await http.get(`${server.url}/streamed-large`, options);
+    expect(streamed).toMatchObject({ truncated: true, body: 'y'.repeat(10_000) });
+    const small = await http.get(`${server.url}/ok`, options);
+    expect(small.truncated).toBe(false);
+  });
+
   it('rejects unexpected content types', async () => {
     const { http } = client();
     const failure = await failureOf(http.get(`${server.url}/pdf`, baseOptions));

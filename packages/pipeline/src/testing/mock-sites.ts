@@ -110,7 +110,12 @@ function createSiteServer(siteDir: string, hits: Map<string, number>): Server {
     }
     if (route.bytes) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-      const chunk = '<p>' + 'x'.repeat(1_000) + '</p>';
+      // like a real site-builder page: readable content first, then megabytes of inline script
+      res.write(
+        '<!doctype html><html><head><title>Employee handbook</title></head><body>' +
+          '<h1>Employee handbook</h1><p>How we plan, review and ship work at this company.</p>',
+      );
+      const chunk = '<script>/*' + 'x'.repeat(1_000) + '*/</script>';
       let sent = 0;
       const write = () => {
         while (sent < route.bytes!) {

@@ -113,11 +113,38 @@ describe('crawlCompanySite', () => {
     expect(byPath['/careers']).toMatchObject({ fetch_status: 'http_error', http_status: 500 });
     expect(byPath['/jobs']).toMatchObject({ fetch_status: 'http_error', http_status: 404 });
     expect(byPath['/culture']).toMatchObject({ fetch_status: 'timeout' });
-    expect(byPath['/handbook']).toMatchObject({ fetch_status: 'too_large' });
+    // oversized HTML is read up to the cap instead of being dropped
+    expect(byPath['/handbook']).toMatchObject({ fetch_status: 'ok', source_type: 'culture' });
     expect(byPath['/engineering']).toMatchObject({ fetch_status: 'bad_content_type' });
     expect(byPath['/team']).toMatchObject({ fetch_status: 'redirect_error' });
-    expect(result.limitations.some((l) => l.startsWith('6 page(s) could not be fetched'))).toBe(
-      true,
+    const failures = result.limitations.find((l) => l.startsWith('5 page(s) could not be fetched'));
+    // reasons are listed in completion order; each names the actual failure, not "HTTP 200"
+    for (const reason of [
+      'HTTP 500',
+      'HTTP 404',
+      'timeout',
+      'bad content type',
+      'redirect error',
+    ]) {
+      expect(failures).toContain(reason);
+    }
+    expect(failures).not.toContain('HTTP 200');
+    expect(result.limitations).toContain(
+      '1 page(s) were larger than 100000 bytes; only the first 100000 bytes were read.',
+    );
+  });
+
+  it('reads an oversized homepage up to the byte cap instead of failing', async () => {
+    const result = await crawlCompanySite(
+      new URL('/handbook', sites.urls.broken).toString(),
+      { ...options, maxPages: 1, maxPageBytes: 50_000 },
+      { http },
+    );
+    expect(result.pages[0]).toMatchObject({ fetch_status: 'ok', depth: 0 });
+    expect(result.homepage?.title).toBe('Employee handbook');
+    expect(result.pages[0]!.text).toContain('How we plan, review and ship work');
+    expect(result.limitations).toContain(
+      '1 page(s) were larger than 50000 bytes; only the first 50000 bytes were read.',
     );
   });
 

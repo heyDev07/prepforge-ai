@@ -455,7 +455,7 @@ Research happens in two separate stages, and both treat everything they fetch as
 
 5. **Crawl best-first:** fetch the highest-scoring link, add its links to the queue, and repeat until `MAX_PAGES` (12) is reached or nothing within `MAX_DEPTH` (2) scores above 0.
 
-**Limits on every request:** 10 s timeout; up to 3 retries for network errors, 429 and 5xx only, with exponential backoff, full jitter and `Retry-After`; HTML only; a 1 MB streamed cap; at most 5 redirects, each re-checked for SSRF; 2 requests in flight; per-host pacing. Links are resolved relative to the page and `<base href>`, and fragments and tracking parameters are removed. Only the same registrable domain is followed (subdomains allowed); for localhost, host and port must match.
+**Limits on every request:** 10 s timeout; up to 3 retries for network errors, 429 and 5xx only, with exponential backoff, full jitter and `Retry-After`; HTML only; a 1 MB streamed cap (larger pages are cut at 1 MB, which still holds the title, visible text and navigation, and the cut is noted); at most 5 redirects, each re-checked for SSRF; 2 requests in flight; per-host pacing. Links are resolved relative to the page and `<base href>`, and fragments and tracking parameters are removed. Only the same registrable domain is followed (subdomains allowed); for localhost, host and port must match.
 
 The mock sites in `fixtures/mock-sites` exercise:
 - a normal careers page
@@ -619,7 +619,8 @@ A partially researched company still produces an **ok** kit with honest gaps. **
 |---|---|
 | Invalid company URL / private address | `INVALID_INPUT` / `URL_NOT_ALLOWED` |
 | Homepage unreachable (DNS, refused, timeout, 5xx after retries) | `COMPANY_UNREACHABLE` |
-| Subpage 404 / timeout / too large / non-HTML | Recorded in the research log; kit ok |
+| Subpage 404 / timeout / non-HTML | Recorded in the research log; kit ok |
+| Page larger than `MAX_PAGE_BYTES` (common for real homepages) | First `MAX_PAGE_BYTES` read and used; noted; kit ok |
 | robots.txt restriction | Disallowed pages skipped and noted; kit ok |
 | No careers or about page | Noted in the brief; kit ok |
 | No public interview discussion | Explicit `not_found`; noted; kit ok |
