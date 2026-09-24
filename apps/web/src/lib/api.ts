@@ -184,9 +184,11 @@ export const api = {
   // practice
   recordPractice: (id: string, flashcardId: string, confidence: number) =>
     request<{ stats: CardStats }>(`/kits/${id}/practice/${flashcardId}`, 'POST', { confidence }),
-  practiceNext: (id: string, mode: 'all' | 'weak', exclude?: string) =>
-    request<PracticeNextDto>(
-      `/kits/${id}/practice/next?mode=${mode}${exclude ? `&exclude=${encodeURIComponent(exclude)}` : ''}`,
-    ),
+  practiceNext: (id: string, mode: 'all' | 'weak', answered: readonly string[], last?: string) => {
+    const params = new URLSearchParams({ mode });
+    if (answered.length > 0) params.set('answered', answered.join(','));
+    if (last) params.set('last', last);
+    return request<PracticeNextDto>(`/kits/${id}/practice/next?${params}`);
+  },
   weakSpots: (id: string) => request<{ weak_spots: WeakSpotsReport }>(`/kits/${id}/weak-spots`),
 };

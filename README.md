@@ -572,9 +572,9 @@ Every question and flashcard, and the company brief, carries internal metadata t
 ## 23. Practice mode
 
 - One flashcard at a time. **Space** reveals the answer; **1–5** records confidence (No idea → Nailed it).
-- The next card is always the weakest, never the one just answered, and the previous card can't be rated again while the next one loads.
-- A **Weak areas** mode limits practice to cards linked to weak requirements.
-- Progress shows cards practised, answers this session and the readiness score.
+- Practice runs in **rounds**: each round shows every card once, weakest first, then ends with a summary of your average rating, the readiness change and your weak areas. Start another round, drill the weak areas, or go back to the kit. A new round never opens with the card you just answered, and the previous card can't be rated again while the next one loads.
+- A **Weak areas** mode limits a round to cards linked to weak requirements.
+- Progress shows the position in the round, cards practised overall and the readiness score.
 
 Card priority, calculated by code:
 
@@ -591,9 +591,9 @@ priority   = (5 − confidence) + 0.5 if it supports a must-have + staleness (up
 |---|---|
 | Card confidence | Weighted average of that card's ratings |
 | Requirement confidence | Mean confidence of its practised cards |
-| Weak requirement | A must-have without a question, a must-have without a flashcard, or confidence below 3 |
+| Weak requirement | A must-have without a question, any requirement without a flashcard (it can't be practised, so it holds readiness down), or confidence below 3 |
 | Category confidence | Mean confidence of the requirements its questions test; the lowest (below 3.5) are marked weakest |
-| Readiness | Weighted mean of (confidence − 1) / 4 over requirements; must-haves count double and unpractised ones count 0 |
+| Readiness | Weighted mean of (confidence − 1) / 4 over requirements; must-haves count double and unpractised ones count 0. The Progress tab shows the per-requirement breakdown |
 
 **It closes the loop:** "Practise weak areas" drills only those cards, and **Rebuild schedule** gives weak requirements +2 so they move earlier in the plan.
 

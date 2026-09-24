@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Eye, Target } from 'lucide-react';
+import type { WeakSpotsReport } from '@prepforge/shared';
+import { ArrowLeft, CheckCircle2, Eye, RotateCcw, Target } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, use, useCallback, useEffect, useState } from 'react';
@@ -35,31 +36,37 @@ function PracticeSession({ id }: { id: string }) {
   const weakSpots = useWeakSpots(id, Boolean(kit.data?.kit));
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [exclude, setExclude] = useState<string | undefined>(undefined);
+  // a round shows every card in the mode once, weakest first, and then ends
+  const [answered, setAnswered] = useState<string[]>([]);
+  const [last, setLast] = useState<string | undefined>(undefined);
+  const [ratings, setRatings] = useState<number[]>([]);
+  const [startReadiness, setStartReadiness] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
-  const [sessionCount, setSessionCount] = useState(0);
   const [saving, setSaving] = useState(false);
 
   const next = useQuery({
-    queryKey: ['kit', id, 'practice-next', mode, exclude ?? ''],
-    queryFn: () => api.practiceNext(id, mode, exclude),
+    queryKey: ['kit', id, 'practice-next', mode, answered.join(','), last ?? ''],
+    queryFn: () => api.practiceNext(id, mode, answered, last),
     enabled: Boolean(kit.data?.kit),
     staleTime: 0,
   });
   const card = next.data?.flashcard ?? null;
 
   const loadingNext = next.isFetching;
+  const currentReadiness = weakSpots.data?.readiness ?? null;
 
   const rate = useCallback(
     async (confidence: number) => {
       if (!card || saving) return;
       setSaving(true);
       try {
+        if (answered.length === 0) setStartReadiness(currentReadiness);
         await api.recordPractice(id, card.id, confidence);
-        setSessionCount((n) => n + 1);
         // drop cached "next card" results so the card just answered is never shown again
         queryClient.removeQueries({ queryKey: ['kit', id, 'practice-next'] });
-        setExclude(card.id);
+        setAnswered((ids) => [...ids, card.id]);
+        setLast(card.id);
+        setRatings((values) => [...values, confidence]);
         setRevealed(false);
         void queryClient.invalidateQueries({ queryKey: keys.weakSpots(id) });
       } catch (error) {
@@ -68,7 +75,7 @@ function PracticeSession({ id }: { id: string }) {
         setSaving(false);
       }
     },
-    [card, id, queryClient, saving, toast],
+    [answered.length, card, currentReadiness, id, queryClient, saving, toast],
   );
 
   // keyboard: Space/Enter reveals, 1–5 rates
@@ -115,10 +122,19 @@ function PracticeSession({ id }: { id: string }) {
   const report = weakSpots.data;
   const total = report?.total_flashcards ?? kit.data.kit.flashcards.length;
   const practised = report?.practiced_flashcards ?? 0;
+  const roundSize = answered.length + (next.data?.remaining ?? 0);
+  const roundComplete = !card && answered.length > 0;
+  const hasWeakCards = Boolean(report?.requirements.some((r) => r.weak && r.flashcards > 0));
+
+  function startRound() {
+    setAnswered([]);
+    setRatings([]);
+    setStartReadiness(null);
+    setRevealed(false);
+  }
 
   function switchMode(value: 'all' | 'weak') {
-    setExclude(undefined);
-    setRevealed(false);
+    startRound();
     router.replace(`/kits/${id}/practice${value === 'weak' ? '?mode=weak' : ''}`);
   }
 
@@ -152,23 +168,28 @@ function PracticeSession({ id }: { id: string }) {
       </div>
 
       <div>
-        <div className="flex justify-between text-xs text-slate-500">
+        <div className="flex justify-between gap-3 text-xs text-slate-500">
           <span>
-            {practised} of {total} cards practised · {sessionCount} answered this session
+            {roundComplete
+              ? `Round complete · ${answered.length} card(s)`
+              : roundSize > 0
+                ? `Card ${answered.length + 1} of ${roundSize} in this round`
+                : 'No cards in this round'}{' '}
+            · {practised} of {total} practised overall
           </span>
           {report ? <span>Readiness {report.readiness}%</span> : null}
         </div>
         <div
           className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200"
           role="progressbar"
-          aria-valuenow={practised}
+          aria-valuenow={answered.length}
           aria-valuemin={0}
-          aria-valuemax={total}
-          aria-label="Cards practised"
+          aria-valuemax={roundSize}
+          aria-label="Cards answered in this round"
         >
           <div
             className="h-full rounded-full bg-brand-600 transition-all"
-            style={{ width: `${total ? (practised / total) * 100 : 0}%` }}
+            style={{ width: `${roundSize ? (answered.length / roundSize) * 100 : 0}%` }}
           />
         </div>
       </div>
@@ -177,13 +198,26 @@ function PracticeSession({ id }: { id: string }) {
         <Card className="p-8">
           <Spinner label="Loading the next card…" />
         </Card>
+      ) : roundComplete ? (
+        <RoundSummary
+          id={id}
+          mode={mode}
+          ratings={ratings}
+          startReadiness={startReadiness}
+          report={report}
+          hasWeakCards={hasWeakCards}
+          onNextRound={startRound}
+          onWeakAreas={() => switchMode('weak')}
+        />
       ) : !card ? (
         <EmptyState
           icon={<Target className="size-10" aria-hidden />}
-          title={mode === 'weak' ? 'No weak areas right now' : 'No flashcards to practise'}
+          title={mode === 'weak' ? 'No weak areas to practise' : 'No flashcards to practise'}
           description={
             mode === 'weak'
-              ? 'Every requirement you have practised is at a comfortable confidence.'
+              ? report?.requirements.some((r) => r.weak)
+                ? 'Your weak requirements have no flashcards yet. Add one on the Flashcards tab to practise them.'
+                : 'Every requirement you have practised is at a comfortable confidence.'
               : 'Add flashcards to this kit first.'
           }
           action={
@@ -259,5 +293,90 @@ function PracticeSession({ id }: { id: string }) {
         </Card>
       )}
     </div>
+  );
+}
+
+function RoundSummary({
+  id,
+  mode,
+  ratings,
+  startReadiness,
+  report,
+  hasWeakCards,
+  onNextRound,
+  onWeakAreas,
+}: {
+  id: string;
+  mode: 'all' | 'weak';
+  ratings: number[];
+  startReadiness: number | null;
+  report: WeakSpotsReport | undefined;
+  hasWeakCards: boolean;
+  onNextRound: () => void;
+  onWeakAreas: () => void;
+}) {
+  const average = ratings.reduce((sum, value) => sum + value, 0) / ratings.length;
+  const weak = report?.requirements.filter((r) => r.weak) ?? [];
+
+  return (
+    <Card className="space-y-5 p-6 sm:p-8">
+      <div className="flex items-start gap-3">
+        <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-600" aria-hidden />
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Round complete</h2>
+          <p className="text-sm text-slate-600">
+            You answered {ratings.length} card(s) with an average rating of {average.toFixed(1)}/5.
+            {report && startReadiness !== null
+              ? ` Readiness went from ${startReadiness}% to ${report.readiness}%.`
+              : ''}
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold text-slate-900">Weak areas</h3>
+        {weak.length === 0 ? (
+          <p className="mt-1 text-sm text-slate-600">
+            None. Every requirement you have practised is at 3/5 or above.
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-1.5">
+            {weak.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                <span className="flex-1">{r.text}</span>
+                <Badge tone={r.reasons.includes('low_confidence') ? 'red' : 'amber'}>
+                  {r.reasons.includes('low_confidence')
+                    ? `Low confidence · ${r.confidence}/5`
+                    : r.reasons.includes('no_flashcard')
+                      ? 'No flashcard'
+                      : 'No question'}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button
+          variant="primary"
+          icon={<RotateCcw className="size-4" aria-hidden />}
+          onClick={onNextRound}
+        >
+          Start another round
+        </Button>
+        {mode === 'all' && hasWeakCards ? (
+          <Button icon={<Target className="size-4" aria-hidden />} onClick={onWeakAreas}>
+            Practise weak areas
+          </Button>
+        ) : null}
+        <Link
+          href={`/kits/${id}?tab=practice`}
+          className="inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium text-slate-700 hover:bg-slate-100"
+        >
+          Back to kit
+        </Link>
+      </div>
+    </Card>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import type { WeakReason } from '@prepforge/shared';
+import type { WeakReason, WeakSpotsReport } from '@prepforge/shared';
 import { Play, Target } from 'lucide-react';
 import Link from 'next/link';
 import { Badge, Card, EmptyState, Spinner } from '@/components/ui';
@@ -36,6 +36,7 @@ export function PracticeTab() {
   }
   const report = weakSpots.data;
   const weak = report.requirements.filter((r) => r.weak);
+  const hasWeakCards = weak.some((r) => r.flashcards > 0);
 
   return (
     <div className="space-y-5">
@@ -57,11 +58,13 @@ export function PracticeTab() {
           <p className="text-sm text-slate-600">
             {report.practiced_flashcards} of {report.total_flashcards} flashcards practised.{' '}
             {report.counts.low_confidence} requirement(s) with low confidence,{' '}
-            {report.counts.uncovered} without a question, {report.counts.unpracticed} card(s) not
-            yet practised.
+            {report.counts.uncovered} without a question,{' '}
+            {weak.filter((r) => r.reasons.includes('no_flashcard')).length} without a flashcard,{' '}
+            {report.counts.unpracticed} card(s) not yet practised.
           </p>
           <p className="text-xs text-slate-500">
-            Must-have requirements count twice as much as nice-to-haves.
+            Your average confidence across the role&apos;s requirements. Must-haves count twice;
+            requirements not yet practised count as 0%.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:w-48">
@@ -73,7 +76,7 @@ export function PracticeTab() {
           </Link>
           <Link
             href={`/kits/${id}/practice?mode=weak`}
-            aria-disabled={weak.length === 0}
+            aria-disabled={!hasWeakCards}
             className={`${linkButton} bg-white text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50 aria-disabled:pointer-events-none aria-disabled:opacity-50`}
           >
             <Target className="size-4" aria-hidden /> Practise weak areas
@@ -141,6 +144,71 @@ export function PracticeTab() {
           </ul>
         </Card>
       </div>
+
+      <ReadinessBreakdown report={report} />
     </div>
+  );
+}
+
+/** Shows exactly how the readiness percentage is computed, one requirement per row. */
+function ReadinessBreakdown({ report }: { report: WeakSpotsReport }) {
+  const rows = report.requirements.map((r) => {
+    const weight = r.priority === 'must' ? 2 : 1;
+    const score = r.confidence === null ? 0 : ((r.confidence - 1) / 4) * 100;
+    return { ...r, weight, score };
+  });
+  const weighted = rows.reduce((sum, r) => sum + r.weight * r.score, 0);
+  const weights = rows.reduce((sum, r) => sum + r.weight, 0);
+
+  return (
+    <Card className="p-5">
+      <details>
+        <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+          How is readiness calculated?
+        </summary>
+        <div className="mt-3 space-y-3 text-sm text-slate-600">
+          <p>
+            Each requirement gets a score from its flashcards: your confidence of 1/5 is 0%, 5/5 is
+            100%. Recent ratings count more than old ones. Readiness is the weighted average of
+            these scores, with must-haves counted twice. A requirement you have not practised, or
+            one without any flashcard, scores 0%, so add a flashcard for it to raise readiness.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-slate-500">
+                <tr>
+                  <th className="py-1.5 pr-3 font-medium">Requirement</th>
+                  <th className="py-1.5 pr-3 font-medium">Weight</th>
+                  <th className="py-1.5 pr-3 font-medium">Confidence</th>
+                  <th className="py-1.5 font-medium">Score</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700">
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td className="py-1.5 pr-3">{r.text}</td>
+                    <td className="py-1.5 pr-3 whitespace-nowrap">
+                      {r.priority === 'must' ? 'Must ×2' : 'Nice ×1'}
+                    </td>
+                    <td className="py-1.5 pr-3 whitespace-nowrap">
+                      {r.confidence !== null
+                        ? `${r.confidence}/5`
+                        : r.flashcards === 0
+                          ? 'no flashcard'
+                          : 'not practised'}
+                    </td>
+                    <td className="py-1.5 whitespace-nowrap">{Math.round(r.score)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-slate-500">
+            Readiness = Σ(weight × score) ÷ Σ weights = {Math.round(weighted)} ÷ {weights} ={' '}
+            <span className="font-semibold text-slate-700">{report.readiness}%</span>
+          </p>
+        </div>
+      </details>
+    </Card>
   );
 }
