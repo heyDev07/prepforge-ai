@@ -50,7 +50,8 @@ const bool = (fallback: boolean) =>
 
 const EnvSchema = z.object({
   LLM_PROVIDER: z.preprocess(
-    (value) => (value === undefined || value === '' ? 'openai' : normalizeName(value)),
+    // Gemini is the default: it has a genuine free tier (OpenAI does not)
+    (value) => (value === undefined || value === '' ? 'gemini' : normalizeName(value)),
     z.enum(LLM_PROVIDERS),
   ),
   LLM_MODEL: optionalString,
@@ -60,7 +61,7 @@ const EnvSchema = z.object({
   OPENAI_API_KEY: optionalString,
   GEMINI_API_KEY: optionalString,
   LLM_MAX_CONCURRENCY: int(2, 1, 16),
-  LLM_REQUESTS_PER_MINUTE: int(60, 1, 10_000),
+  LLM_REQUESTS_PER_MINUTE: int(15, 1, 10_000), // Gemini free tier: 15 requests/minute
   LLM_MAX_RETRIES: int(4, 0, 10),
   LLM_TIMEOUT_MS: int(60_000, 1_000, 600_000),
 

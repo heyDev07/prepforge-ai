@@ -5,10 +5,11 @@ describe('loadPipelineConfig', () => {
   it('applies the documented defaults to an empty environment', () => {
     const config = loadPipelineConfig({});
     expect(config.llm).toMatchObject({
-      provider: 'openai',
-      model: 'gpt-4.1-mini',
+      provider: 'gemini',
+      model: 'gemini-flash-lite-latest',
       apiKey: undefined,
       maxConcurrency: 2,
+      requestsPerMinute: 15,
     });
     expect(config.crawler).toEqual({
       maxPages: 12,
@@ -27,14 +28,14 @@ describe('loadPipelineConfig', () => {
 
   it('treats empty values from .env as unset', () => {
     const config = loadPipelineConfig({ LLM_MODEL: '', LLM_BASE_URL: '', MAX_PAGES: '' });
-    expect(config.llm.model).toBe('gpt-4.1-mini');
+    expect(config.llm.model).toBe('gemini-flash-lite-latest');
     expect(config.llm.baseUrl).toBeUndefined();
     expect(config.crawler.maxPages).toBe(12);
   });
 
   it('picks the API key that matches the provider', () => {
     const env = { OPENAI_API_KEY: 'sk-openai', GEMINI_API_KEY: 'g-key' };
-    expect(loadPipelineConfig(env).llm.apiKey).toBe('sk-openai');
+    expect(loadPipelineConfig({ ...env, LLM_PROVIDER: 'openai' }).llm.apiKey).toBe('sk-openai');
     const gemini = loadPipelineConfig({ ...env, LLM_PROVIDER: 'gemini' });
     expect(gemini.llm.apiKey).toBe('g-key');
     expect(gemini.llm.model).toBe('gemini-flash-lite-latest');
@@ -42,7 +43,7 @@ describe('loadPipelineConfig', () => {
 
   it('uses the model configured for the selected provider unless LLM_MODEL overrides it', () => {
     const env = { OPENAI_MODEL: 'gpt-x', GEMINI_MODEL: 'gemini-y' };
-    expect(loadPipelineConfig(env).llm.model).toBe('gpt-x');
+    expect(loadPipelineConfig({ ...env, LLM_PROVIDER: 'openai' }).llm.model).toBe('gpt-x');
     expect(loadPipelineConfig({ ...env, LLM_PROVIDER: 'gemini' }).llm.model).toBe('gemini-y');
     expect(loadPipelineConfig({ ...env, LLM_PROVIDER: 'gemini', LLM_MODEL: 'z' }).llm.model).toBe(
       'z',
