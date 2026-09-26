@@ -41,7 +41,7 @@ import type { HttpClient } from './net/http-client';
 import { assertUrlAllowed, parseHttpUrl, type LookupFn, type UrlPolicy } from './net/url-guard';
 import { deriveCompanyName } from './research/company-name';
 import { crawlCompanySite, type CrawlResult } from './research/crawler';
-import { selectResearchSources } from './research/excerpts';
+import { isResearchGap, selectResearchSources } from './research/excerpts';
 import { researchInterviews } from './search/interview-research';
 import type { SearchProvider } from './search/provider';
 import { validateKit, type KitIssue } from './validation/validate-kit';
@@ -248,7 +248,8 @@ async function execute(
       { http: deps.http, onProgress: (detail) => t.update(detail), signal },
     ),
   );
-  notes.push(...crawl.limitations);
+  // the research log keeps every limitation; the kit's notes only list real gaps
+  notes.push(...crawl.limitations.filter(isResearchGap));
   const okPages = crawl.pages.filter((p) => p.fetch_status === 'ok').length;
   const failedPages = crawl.pages.filter(
     (p) => p.fetch_status !== 'ok' && p.fetch_status !== 'robots_disallowed',

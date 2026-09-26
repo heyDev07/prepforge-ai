@@ -83,15 +83,20 @@ export function selectResearchSources(
 }
 
 /** Human-readable research gaps, decided by code (not the model). */
+/**
+ * True for limitations that are gaps a candidate should know about (no careers page, pages
+ * that failed, robots.txt blocks). Crawl mechanics such as reaching the page limit or reading
+ * a large page up to the byte cap are not gaps; they stay in the research log only.
+ */
+export function isResearchGap(limitation: string): boolean {
+  return /careers|about|could not be fetched|disallow|robots/i.test(limitation);
+}
+
 export function researchNotes(bundle: ResearchBundle): string[] {
   const notes: string[] = [];
   const okPages = bundle.pages.filter((p) => p.fetch_status === 'ok');
   if (okPages.length === 0) notes.push('No pages from the company website could be read.');
-  for (const limitation of bundle.limitations) {
-    if (/careers|about|could not be fetched|disallow|robots/i.test(limitation)) {
-      notes.push(limitation);
-    }
-  }
+  notes.push(...bundle.limitations.filter(isResearchGap));
   if (bundle.public_research.status === 'not_found') {
     notes.push("No public discussion of the company's interview process was found.");
   } else if (bundle.public_research.status === 'unavailable') {

@@ -143,6 +143,17 @@ describe('runPipeline with fixture JDs and mock company sites', () => {
     );
   });
 
+  it('keeps crawl mechanics such as the page limit out of the notes', async () => {
+    const result = await runPipeline(
+      { jd: jd('jd-backend.txt'), company_url: sites.urls['acme-careers'], days: 3 },
+      deps({ config: { ...config, crawler: { ...config.crawler, maxPages: 2 } } }),
+    );
+    const pageLimit = (text: string) => text.includes('page limit was reached');
+    expect(result.research.limitations.some(pageLimit)).toBe(true);
+    expect(result.notes.some(pageLimit)).toBe(false);
+    expect(result.kit.company_brief.summary.includes('page limit')).toBe(false);
+  });
+
   it('records broken pages but still produces a kit', async () => {
     const result = await runPipeline(
       { jd: jd('jd-backend.txt'), company_url: sites.urls.broken, days: 3 },
