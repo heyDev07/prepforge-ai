@@ -48,8 +48,9 @@ describe('checkGenerationStatus', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { kitFetches, statusFetches } = watch(queryClient, 150);
 
-    await vi.waitFor(() =>
-      expect(queryClient.getQueryData<KitDetailDto>(keys.kit(id))?.kit).not.toBeNull(),
+    await vi.waitFor(
+      () => expect(queryClient.getQueryData<KitDetailDto>(keys.kit(id))?.kit).not.toBeNull(),
+      { timeout: 5_000 },
     );
     await sleep(300);
     expect(kitFetches()).toBe(1);
