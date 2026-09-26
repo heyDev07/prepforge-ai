@@ -104,6 +104,11 @@ export function FlashcardsTab() {
     },
   );
 
+  // pinned cards first; otherwise keep the kit's order (sort is stable)
+  const cards = [...kit.flashcards].sort(
+    (a, b) => Number(b.state === 'pinned') - Number(a.state === 'pinned'),
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -136,7 +141,7 @@ export function FlashcardsTab() {
         <EmptyState title="No flashcards yet" description="Add a flashcard to start practising." />
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
-          {kit.flashcards.map((card) => (
+          {cards.map((card) => (
             <li key={card.id}>
               <Card className="flex h-full flex-col p-4">
                 {editingId === card.id ? (
