@@ -32,7 +32,15 @@ export function computeFingerprint(jd: string, companyUrl: string): string {
   return sha256(`${normalizeJd(jd)}\n${normalizeCompanyUrl(companyUrl)}`);
 }
 
+/**
+ * Version of the cached extraction and research results. The cache outlives deploys, so bump
+ * this whenever extraction or crawling changes what it returns; otherwise results computed by
+ * the old code keep being served (for up to a day) after a fix ships.
+ */
+export const CACHE_VERSION = 2;
+
 /** Cache keys: extraction depends only on the JD, research only on the URL. */
-export const extractionCacheKey = (jd: string) => `extraction:${sha256(normalizeJd(jd))}`;
+export const extractionCacheKey = (jd: string) =>
+  `extraction:v${CACHE_VERSION}:${sha256(normalizeJd(jd))}`;
 export const researchCacheKey = (companyUrl: string) =>
-  `research:${sha256(normalizeCompanyUrl(companyUrl))}`;
+  `research:v${CACHE_VERSION}:${sha256(normalizeCompanyUrl(companyUrl))}`;

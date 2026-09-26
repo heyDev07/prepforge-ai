@@ -51,6 +51,7 @@ describe('computeFingerprint', () => {
     expect(researchCacheKey('https://acme.example/')).toBe(
       researchCacheKey('https://acme.example'),
     );
-    expect(extractionCacheKey(jd)).toMatch(/^extraction:/);
+    expect(extractionCacheKey(jd)).toMatch(/^extraction:v\d+:/);
+    expect(researchCacheKey('https://acme.example')).toMatch(/^research:v\d+:/);
   });
 });
