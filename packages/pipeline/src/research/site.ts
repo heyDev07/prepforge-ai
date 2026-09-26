@@ -59,6 +59,38 @@ export function pathTokens(pathname: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Tokens of the subdomain labels in front of the registrable domain, so that
+ * careers.acme.com → ["careers"] and jobs.eu.acme.com → ["jobs", "eu"]. "www" is ignored.
+ */
+export function subdomainTokens(hostname: string): string[] {
+  const host = hostname.toLowerCase().replace(/\.$/, '');
+  const domain = registrableDomain(host);
+  if (host === domain || !host.endsWith(`.${domain}`)) return [];
+  return host
+    .slice(0, -domain.length - 1)
+    .split(/[^a-z0-9]+/)
+    .filter((label) => label && !/^www\d*$/.test(label));
+}
+
+/** Keyword tokens of a URL: its subdomain labels followed by its path. */
+export function urlTokens(url: URL): string[] {
+  return [...subdomainTokens(url.hostname), ...pathTokens(url.pathname)];
+}
+
+/**
+ * Whether a keyword stem matches: a token starting with the stem ("career" → "careers"), a long
+ * stem inside the joined tokens ("workwithus"), or, for stems ending in "$", an exact token
+ * ("team$" matches "team" but not "teams", which is often a product name).
+ */
+export function matchesStem(tokens: readonly string[], stem: string): boolean {
+  if (stem.endsWith('$')) return tokens.includes(stem.slice(0, -1));
+  return (
+    tokens.some((token) => token.startsWith(stem)) ||
+    (stem.length > 6 && tokens.join('').includes(stem))
+  );
+}
+
 /** Lower-cased word tokens of free text. */
 export function textTokens(text: string): string[] {
   return text

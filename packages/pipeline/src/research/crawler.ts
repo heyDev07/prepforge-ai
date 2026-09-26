@@ -79,6 +79,19 @@ const WELL_KNOWN_PATHS: ReadonlyArray<readonly [SourceType, string[]]> = [
 
 const ROBOTS_MAX_BYTES = 512_000;
 
+/** At most this many pages per site section, so one product family can't use up the budget. */
+const MAX_PAGES_PER_SECTION = 4;
+const LOCALE_SEGMENT = /^[a-z]{2}(?:[-_][a-z]{2,4})?$/i;
+
+/**
+ * A page's section: its host plus the first path segment that is not a locale, so
+ * /en-in/microsoft-teams/premium → "www.microsoft.com/microsoft-teams".
+ */
+export function siteSection(url: URL): string {
+  const first = url.pathname.split('/').find((segment) => segment && !LOCALE_SEGMENT.test(segment));
+  return `${url.hostname}/${(first ?? '').toLowerCase()}`;
+}
+
 /** "HTTP 503" for HTTP errors, otherwise the kind of failure ("timeout", "bad content type"). */
 function describeFailure(status: string, httpStatus: number | null): string {
   return status === 'http_error' && httpStatus ? `HTTP ${httpStatus}` : status.replace(/_/g, ' ');
@@ -271,6 +284,7 @@ export async function crawlCompanySite(
     }
   };
 
+  const sections = new Map<string, number>();
   const takeBest = (count: number): Candidate[] => {
     const ranked = [...frontier.entries()].sort(
       ([, a], [, b]) => b.score - a.score || a.order - b.order,
@@ -280,6 +294,8 @@ export async function crawlCompanySite(
       if (chosen.length >= count) break;
       frontier.delete(key);
       visited.add(key);
+      const section = siteSection(candidate.url);
+      if ((sections.get(section) ?? 0) >= MAX_PAGES_PER_SECTION) continue;
       if (!robots.isAllowed(candidate.url)) {
         if (candidate.guessed) continue;
         disallowed++;
@@ -288,6 +304,7 @@ export async function crawlCompanySite(
         });
         continue;
       }
+      sections.set(section, (sections.get(section) ?? 0) + 1);
       chosen.push(candidate);
     }
     return chosen;

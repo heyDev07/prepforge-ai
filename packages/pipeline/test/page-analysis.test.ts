@@ -3,7 +3,8 @@ import { classifyPage } from '../src/research/classify-page';
 import { deriveCompanyName } from '../src/research/company-name';
 import { extractPage } from '../src/research/extract-content';
 import { isExcludedResource, scoreLink } from '../src/research/link-ranker';
-import { canonicalUrl, isSameSite, registrableDomain } from '../src/research/site';
+import { siteSection } from '../src/research/crawler';
+import { canonicalUrl, isSameSite, registrableDomain, subdomainTokens } from '../src/research/site';
 
 describe('site helpers', () => {
   it.each([
@@ -35,6 +36,28 @@ describe('site helpers', () => {
       'https://acme.com/careers?a=1&b=2',
     );
     expect(canonicalUrl('https://acme.com/')).toBe('https://acme.com/');
+  });
+});
+
+describe('subdomainTokens and siteSection', () => {
+  it('reads the labels in front of the registrable domain, ignoring www', () => {
+    expect(subdomainTokens('careers.microsoft.com')).toEqual(['careers']);
+    expect(subdomainTokens('jobs.eu.acme.co.uk')).toEqual(['jobs', 'eu']);
+    expect(subdomainTokens('www.acme.com')).toEqual([]);
+    expect(subdomainTokens('acme.com')).toEqual([]);
+    expect(subdomainTokens('localhost')).toEqual([]);
+  });
+
+  it('groups pages by host and first non-locale path segment', () => {
+    const section = (url: string) => siteSection(new URL(url));
+    expect(section('https://www.microsoft.com/en-in/microsoft-teams/premium')).toBe(
+      'www.microsoft.com/microsoft-teams',
+    );
+    expect(section('https://www.microsoft.com/en-us/microsoft-teams/education')).toBe(
+      'www.microsoft.com/microsoft-teams',
+    );
+    expect(section('https://acme.com/careers/backend')).toBe('acme.com/careers');
+    expect(section('https://acme.com/')).toBe('acme.com/');
   });
 });
 
@@ -118,6 +141,20 @@ describe('scoreLink', () => {
     expect(score('/careers')).toBeGreaterThan(score('/careers?page=2'));
   });
 
+  it('reads keywords from the subdomain as well as the path', () => {
+    const at = (url: string, text = '') =>
+      scoreLink({ url: new URL(url), text, title: '' }, 1).score;
+    expect(at('https://careers.acme.com/', 'Careers')).toBe(
+      at('https://acme.com/careers', 'Careers'),
+    );
+    expect(at('https://accounts.acme.com/signin')).toBeLessThan(0);
+  });
+
+  it('does not treat a product called "Teams" as a team page', () => {
+    expect(score('/microsoft-teams/premium', 'Microsoft Teams')).toBeLessThanOrEqual(0);
+    expect(score('/our-team', 'Meet the team')).toBeGreaterThan(0);
+  });
+
   it('excludes downloads and assets', () => {
     expect(isExcludedResource(new URL('https://acme.com/handbook.pdf'))).toBe(true);
     expect(isExcludedResource(new URL('https://acme.com/handbook'))).toBe(false);
@@ -138,8 +175,14 @@ describe('classifyPage', () => {
     ['/about', 'about'],
     ['/company/team', 'about'],
     ['/pricing', 'other'],
+    ['/microsoft-teams/premium', 'other'],
   ])('%s → %s', (path, expected) => {
     expect(classify(path)).toBe(expected);
+  });
+
+  it('classifies a careers subdomain as careers', () => {
+    const page = { url: new URL('https://careers.acme.com/v2/home.html'), title: '', h1: '' };
+    expect(classifyPage(page, false)).toBe('careers');
   });
 
   it('falls back to the title when the path is opaque', () => {

@@ -7,7 +7,7 @@
  *           − 2 · depth − 1 (query string) − 1 (more than 4 path segments)
  *           − negative keyword weights
  */
-import { pathTokens, textTokens } from './site';
+import { matchesStem, pathTokens, textTokens, urlTokens } from './site';
 
 /** Keyword stems (matched as token prefixes) and their weights. */
 export const POSITIVE_KEYWORDS: ReadonlyArray<readonly [string, number]> = [
@@ -29,7 +29,7 @@ export const POSITIVE_KEYWORDS: ReadonlyArray<readonly [string, number]> = [
   ['company', 6],
   ['values', 6],
   ['mission', 5],
-  ['team', 5],
+  ['team$', 5],
   ['people', 4],
   ['story', 4],
   ['tech', 4],
@@ -70,15 +70,12 @@ function keywordScore(
   tokens: string[],
   keywords: ReadonlyArray<readonly [string, number]>,
 ): { total: number; matched: string[] } {
-  const joined = tokens.join('');
   let total = 0;
   const matched: string[] = [];
   for (const [stem, weight] of keywords) {
-    const hit =
-      tokens.some((token) => token.startsWith(stem)) || (stem.length > 6 && joined.includes(stem));
-    if (hit) {
+    if (matchesStem(tokens, stem)) {
       total += weight;
-      matched.push(stem);
+      matched.push(stem.replace(/\$$/, ''));
     }
   }
   return { total: Math.min(total, MAX_SIDE_SCORE), matched };
@@ -96,9 +93,11 @@ export function scoreLink(
   const path = pathTokens(link.url.pathname);
   const anchor = textTokens(`${link.text} ${link.title}`);
 
-  const pathPositive = keywordScore(path, POSITIVE_KEYWORDS);
+  // the subdomain counts like the path: careers.acme.com is as clear as acme.com/careers
+  const location = urlTokens(link.url);
+  const pathPositive = keywordScore(location, POSITIVE_KEYWORDS);
   const anchorPositive = keywordScore(anchor, POSITIVE_KEYWORDS);
-  const pathNegative = keywordScore(path, NEGATIVE_KEYWORDS);
+  const pathNegative = keywordScore(location, NEGATIVE_KEYWORDS);
   const anchorNegative = keywordScore(anchor, NEGATIVE_KEYWORDS);
 
   let score = pathPositive.total + 0.8 * anchorPositive.total;
