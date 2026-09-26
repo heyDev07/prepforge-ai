@@ -60,7 +60,11 @@ function GenerationView({ id }: { id: string }) {
   useEffect(() => {
     if (!jobDone || !kitMissing || kitLoading) return;
     const timer = setTimeout(() => {
-      void queryClient.invalidateQueries({ queryKey: keys.kit(id) });
+      // let a slow reload finish instead of restarting it
+      void queryClient.invalidateQueries(
+        { queryKey: keys.kit(id), exact: true },
+        { cancelRefetch: false },
+      );
     }, 1_500);
     return () => clearTimeout(timer);
   }, [id, jobDone, kitLoading, kitMissing, queryClient]);

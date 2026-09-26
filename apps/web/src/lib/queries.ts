@@ -10,17 +10,9 @@ import {
 import { useToast } from '@/components/toast';
 import type { ApiError } from './api';
 import { api, type KitResponse } from './api';
+import { checkGenerationStatus, isActive, keys } from './job-status';
 
-export const keys = {
-  me: ['me'] as const,
-  kits: ['kits'] as const,
-  kit: (id: string) => ['kit', id] as const,
-  status: (id: string) => ['kit', id, 'status'] as const,
-  weakSpots: (id: string) => ['kit', id, 'weak-spots'] as const,
-};
-
-const isActive = (job: { status: string } | null | undefined) =>
-  job?.status === 'queued' || job?.status === 'running';
+export { keys };
 
 export function useMe() {
   return useQuery({ queryKey: keys.me, queryFn: api.me, retry: false, staleTime: 60_000 });
@@ -50,21 +42,7 @@ export function useGenerationStatus(id: string, enabled: boolean) {
   const queryClient = useQueryClient();
   return useQuery({
     queryKey: keys.status(id),
-    queryFn: async () => {
-      const status = await api.generationStatus(id);
-      const cached = queryClient.getQueryData<KitDetailDto>(keys.kit(id));
-      const finished = !isActive(status.job);
-      if (
-        finished &&
-        cached &&
-        (cached.latest_job?.id !== status.job?.id || isActive(cached.latest_job))
-      ) {
-        await queryClient.invalidateQueries({ queryKey: keys.kit(id) });
-        await queryClient.invalidateQueries({ queryKey: keys.weakSpots(id) });
-        await queryClient.invalidateQueries({ queryKey: keys.kits });
-      }
-      return status;
-    },
+    queryFn: () => checkGenerationStatus(queryClient, id, api.generationStatus),
     enabled,
     refetchInterval: (query) => (isActive(query.state.data?.job) ? 1_500 : false),
   });
