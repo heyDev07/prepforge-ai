@@ -1,0 +1,42 @@
+# Render blueprint for the API (New → Blueprint → select this repository).
+# Values marked `sync: false` are secrets: Render asks for them when the blueprint is created.
+services:
+  - type: web
+    name: prepforge-api
+    runtime: node
+    plan: free
+    region: singapore
+    # NODE_ENV=production makes npm skip devDependencies, but the build needs tsup and TypeScript
+    buildCommand: npm ci --include=dev && npm run build -w @prepforge/api
+    startCommand: npm run start:api
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: 'true'
+      # browser → Vercel → Render's load balancer → API: two proxies in front of the app
+      - key: TRUST_PROXY
+        value: '2'
+      - key: ALLOW_PRIVATE_URLS
+        value: 'false'
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_REQUESTS_PER_MINUTE
+        value: '15'
+      - key: SEARCH_PROVIDER
+        value: tavily
+      - key: GENERATION_CONCURRENCY
+        value: '1'
+      - key: MONGODB_URI
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      # the web app's URL, e.g. https://prepforge-ai.vercel.app (no trailing slash)
+      - key: CORS_ORIGINS
+        sync: false
