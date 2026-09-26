@@ -22,6 +22,11 @@ describe('health and error shape', () => {
     expect(res.headers['x-powered-by']).toBeUndefined();
   });
 
+  it('marks API responses as not cacheable', async () => {
+    const res = await supertest(h.app).get('/api/auth/me');
+    expect(res.headers['cache-control']).toBe('no-store');
+  });
+
   it('returns structured JSON errors for unknown routes and invalid JSON', async () => {
     const missing = await supertest(h.app).get('/api/nope');
     expect(missing.status).toBe(404);

@@ -27,6 +27,11 @@ export function createApp({ config, jobs }: AppContext): Express {
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
+  // API responses are per-user: never let a browser or a shared cache keep them
+  app.use('/api', (_req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+  });
   app.use('/api/auth', authRouter(config));
   app.use('/api/kits', kitsRouter(config, jobs));
 
