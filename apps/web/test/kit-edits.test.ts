@@ -2,7 +2,7 @@ import type { KitDetailDto } from '@prepforge/shared';
 import { MutationObserver, QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 import { keys } from '../src/lib/job-status';
-import { kitEditOptions } from '../src/lib/kit-edits';
+import { kitEditOptions, kitScope } from '../src/lib/kit-edits';
 
 const id = 'kit-1';
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,5 +46,25 @@ describe('kitEditOptions', () => {
     expect(results.map((r) => r.status)).toEqual(['fulfilled', 'fulfilled']);
     expect(server.applied).toEqual(['reorder', 'add question']);
     expect(queryClient.getQueryData<KitDetailDto>(keys.kit(id))?.revision).toBe(7);
+  });
+
+  it('starts a regeneration only after an edit still waiting to be saved', async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(keys.kit(id), { revision: 5 } as KitDetailDto);
+    const server = fakeServer(5);
+    const regenerate = new MutationObserver(queryClient, {
+      scope: kitScope(id),
+      mutationFn: async () => {
+        server.applied.push('regenerate');
+        return null;
+      },
+    });
+
+    await Promise.all([
+      editor(queryClient, server).mutate('reorder'),
+      editor(queryClient, server).mutate('add question'),
+      regenerate.mutate(undefined),
+    ]);
+    expect(server.applied).toEqual(['reorder', 'add question', 'regenerate']);
   });
 });

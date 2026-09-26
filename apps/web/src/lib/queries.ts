@@ -11,7 +11,7 @@ import { useToast } from '@/components/toast';
 import type { ApiError } from './api';
 import { api, type KitResponse } from './api';
 import { checkGenerationStatus, isActive, keys } from './job-status';
-import { kitEditOptions } from './kit-edits';
+import { kitEditOptions, kitScope } from './kit-edits';
 
 export { keys };
 
@@ -102,6 +102,8 @@ export function useStartJob<TVariables>(
   const queryClient = useQueryClient();
   const toast = useToast();
   return useMutation<{ job: GenerationJob }, ApiError, TVariables>({
+    // after any edit still waiting to be saved (see kit-edits.ts)
+    scope: kitScope(id),
     mutationFn,
     onSuccess: ({ job }) => {
       queryClient.setQueryData(keys.status(id), (previous: { kit_status: string } | undefined) => ({
