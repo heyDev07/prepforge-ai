@@ -326,6 +326,7 @@ export function kitsRouter(config: ApiConfig, jobs: JobRunner): Router {
       mode: query.mode,
       answered: query.answered,
       lastId: query.last,
+      currentId: query.current,
     });
     const next = queue[0];
     const body: PracticeNextDto = {

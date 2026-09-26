@@ -77,6 +77,8 @@ export interface QueueOptions {
   answered?: readonly string[];
   /** Card answered last — not shown first (e.g. at the start of a new round) unless it is the only choice. */
   lastId?: string;
+  /** Card that was on screen when the user left; shown first again if it is still in the round. */
+  currentId?: string;
   now?: Date;
 }
 
@@ -121,6 +123,8 @@ export function orderPracticeQueue(
   if (options.lastId && entries.length > 1 && entries[0]!.flashcard.id === options.lastId) {
     entries.push(entries.shift()!);
   }
+  const current = entries.findIndex((entry) => entry.flashcard.id === options.currentId);
+  if (current > 0) entries.unshift(...entries.splice(current, 1));
   return entries;
 }
 

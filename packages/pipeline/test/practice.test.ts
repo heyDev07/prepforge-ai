@@ -51,6 +51,19 @@ describe('orderPracticeQueue', () => {
     expect(queue.map((e) => e.flashcard.id)).toContain('f2');
   });
 
+  it('resumes with the card that was on screen, unless it was already answered', () => {
+    const attempts = [attempt('f2', 1, 5)]; // f2 would normally come first
+    expect(orderPracticeQueue(kit(), attempts, { now, currentId: 'f3' })[0]!.flashcard.id).toBe(
+      'f3',
+    );
+    const answered = orderPracticeQueue(kit(), attempts, {
+      now,
+      currentId: 'f3',
+      answered: ['f3'],
+    });
+    expect(answered.map((e) => e.flashcard.id)).toEqual(['f2', 'f1']);
+  });
+
   it('shows each card once per round and then ends the round', () => {
     const attempts = [attempt('f2', 1, 5)]; // f2 stays the weakest card; f1 supports a must-have
     expect(

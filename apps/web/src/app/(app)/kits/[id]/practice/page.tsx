@@ -19,6 +19,47 @@ const CONFIDENCE = [
   { value: 5, label: 'Nailed it' },
 ];
 
+type Mode = 'all' | 'weak';
+
+/** Progress through one round of a mode; scores themselves live on the server. */
+interface Round {
+  answered: string[];
+  ratings: number[];
+  startReadiness: number | null;
+  last?: string;
+}
+
+const EMPTY_ROUND: Round = { answered: [], ratings: [], startReadiness: null };
+const roundKey = (id: string, mode: Mode) => `prepforge:practice:${id}:${mode}`;
+const currentKey = (id: string, mode: Mode) => `${roundKey(id, mode)}:current`;
+
+// Rounds are remembered per browser so switching modes or leaving the page resumes them.
+// Storage can be unavailable (private windows, blocked site data): practice still works.
+function readStorage<T>(key: string): T | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: unknown) {
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // not remembered, which only means a later visit starts a fresh round
+  }
+}
+
+function loadRound(id: string, mode: Mode): Round {
+  const saved = readStorage<Round>(roundKey(id, mode));
+  return saved && Array.isArray(saved.answered) && Array.isArray(saved.ratings)
+    ? { ...EMPTY_ROUND, ...saved }
+    : EMPTY_ROUND;
+}
+
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   return (
@@ -31,26 +72,52 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 function PracticeSession({ id }: { id: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const mode = searchParams.get('mode') === 'weak' ? 'weak' : 'all';
+  const mode: Mode = searchParams.get('mode') === 'weak' ? 'weak' : 'all';
   const kit = useKit(id);
   const weakSpots = useWeakSpots(id, Boolean(kit.data?.kit));
   const queryClient = useQueryClient();
   const toast = useToast();
-  // a round shows every card in the mode once, weakest first, and then ends
-  const [answered, setAnswered] = useState<string[]>([]);
-  const [last, setLast] = useState<string | undefined>(undefined);
-  const [ratings, setRatings] = useState<number[]>([]);
-  const [startReadiness, setStartReadiness] = useState<number | null>(null);
+  // a round shows every card in the mode once, weakest first, and then ends;
+  // each mode keeps its own round, so switching between them resumes where you were
+  const [rounds, setRounds] = useState<Record<Mode, Round>>(() => ({
+    all: loadRound(id, 'all'),
+    weak: loadRound(id, 'weak'),
+  }));
+  const round = rounds[mode];
+  const { answered, ratings } = round;
   const [revealed, setRevealed] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const updateRound = useCallback(
+    (target: Mode, change: (current: Round) => Round) =>
+      setRounds((previous) => {
+        const updated = change(previous[target]);
+        writeStorage(roundKey(id, target), updated);
+        return { ...previous, [target]: updated };
+      }),
+    [id],
+  );
+
   const next = useQuery({
-    queryKey: ['kit', id, 'practice-next', mode, answered.join(','), last ?? ''],
-    queryFn: () => api.practiceNext(id, mode, answered, last),
+    queryKey: ['kit', id, 'practice-next', mode, answered.join(','), round.last ?? ''],
+    queryFn: () =>
+      api.practiceNext(
+        id,
+        mode,
+        answered,
+        round.last,
+        readStorage<string>(currentKey(id, mode)) ?? undefined,
+      ),
     enabled: Boolean(kit.data?.kit),
     staleTime: 0,
   });
   const card = next.data?.flashcard ?? null;
+
+  // remember the card on screen so coming back shows the same question
+  const cardId = card?.id;
+  useEffect(() => {
+    if (cardId) writeStorage(currentKey(id, mode), cardId);
+  }, [cardId, id, mode]);
 
   const loadingNext = next.isFetching;
   const currentReadiness = weakSpots.data?.readiness ?? null;
@@ -60,13 +127,16 @@ function PracticeSession({ id }: { id: string }) {
       if (!card || saving) return;
       setSaving(true);
       try {
-        if (answered.length === 0) setStartReadiness(currentReadiness);
+        const startReadiness = answered.length === 0 ? currentReadiness : round.startReadiness;
         await api.recordPractice(id, card.id, confidence);
         // drop cached "next card" results so the card just answered is never shown again
         queryClient.removeQueries({ queryKey: ['kit', id, 'practice-next'] });
-        setAnswered((ids) => [...ids, card.id]);
-        setLast(card.id);
-        setRatings((values) => [...values, confidence]);
+        updateRound(mode, (current) => ({
+          answered: [...current.answered, card.id],
+          ratings: [...current.ratings, confidence],
+          startReadiness,
+          last: card.id,
+        }));
         setRevealed(false);
         void queryClient.invalidateQueries({ queryKey: keys.weakSpots(id) });
       } catch (error) {
@@ -75,7 +145,18 @@ function PracticeSession({ id }: { id: string }) {
         setSaving(false);
       }
     },
-    [answered.length, card, currentReadiness, id, queryClient, saving, toast],
+    [
+      answered.length,
+      card,
+      currentReadiness,
+      id,
+      mode,
+      queryClient,
+      round.startReadiness,
+      saving,
+      toast,
+      updateRound,
+    ],
   );
 
   // keyboard: Space/Enter reveals, 1–5 rates
@@ -126,15 +207,16 @@ function PracticeSession({ id }: { id: string }) {
   const roundComplete = !card && answered.length > 0;
   const hasWeakCards = Boolean(report?.requirements.some((r) => r.weak && r.flashcards > 0));
 
-  function startRound() {
-    setAnswered([]);
-    setRatings([]);
-    setStartReadiness(null);
+  /** Starts this mode's round again from the weakest card; scores are not touched. */
+  function restartRound() {
+    writeStorage(currentKey(id, mode), null);
+    queryClient.removeQueries({ queryKey: ['kit', id, 'practice-next', mode] });
+    updateRound(mode, (current) => ({ ...EMPTY_ROUND, last: current.last }));
     setRevealed(false);
   }
 
-  function switchMode(value: 'all' | 'weak') {
-    startRound();
+  function switchMode(value: Mode) {
+    setRevealed(false);
     router.replace(`/kits/${id}/practice${value === 'weak' ? '?mode=weak' : ''}`);
   }
 
@@ -192,6 +274,19 @@ function PracticeSession({ id }: { id: string }) {
             style={{ width: `${roundSize ? (answered.length / roundSize) * 100 : 0}%` }}
           />
         </div>
+        {answered.length > 0 && !roundComplete ? (
+          <div className="mt-2 flex justify-end">
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<RotateCcw className="size-3.5" aria-hidden />}
+              title="Start this round again from the weakest card. Your scores are kept."
+              onClick={restartRound}
+            >
+              Restart round
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {loadingNext ? (
@@ -203,10 +298,10 @@ function PracticeSession({ id }: { id: string }) {
           id={id}
           mode={mode}
           ratings={ratings}
-          startReadiness={startReadiness}
+          startReadiness={round.startReadiness}
           report={report}
           hasWeakCards={hasWeakCards}
-          onNextRound={startRound}
+          onNextRound={restartRound}
           onWeakAreas={() => switchMode('weak')}
         />
       ) : !card ? (

@@ -167,6 +167,8 @@ export const PracticeNextQuerySchema = z.object({
     .transform((value) => (value ? value.split(',').filter(Boolean).slice(0, 500) : [])),
   /** The card answered last, so a new round does not start with it. */
   last: z.string().optional(),
+  /** The card that was on screen, so a resumed round continues with it. */
+  current: z.string().optional(),
 });
 
 export interface PracticeNextDto {

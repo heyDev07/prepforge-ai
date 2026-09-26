@@ -575,6 +575,7 @@ Every question and flashcard, and the company brief, carries internal metadata t
 - One flashcard at a time. **Space** reveals the answer; **1–5** records confidence (No idea → Nailed it).
 - Practice runs in **rounds**: each round shows every card once, weakest first, then ends with a summary of your average rating, the readiness change and your weak areas. Start another round, drill the weak areas, or go back to the kit. A new round never opens with the card you just answered, and the previous card can't be rated again while the next one loads.
 - A **Weak areas** mode limits a round to cards linked to weak requirements.
+- Each mode keeps its own round, so switching modes or leaving the page resumes exactly where you were, on the same card. **Restart round** starts a fresh cycle at any time; scores are never reset. (Round progress is remembered in the browser; scores are stored on the server.)
 - Progress shows the position in the round, cards practised overall and the readiness score.
 
 Card priority, calculated by code:
