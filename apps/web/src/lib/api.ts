@@ -40,7 +40,19 @@ export class ApiError extends Error {
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-async function request<T>(path: string, method: Method = 'GET', body?: unknown): Promise<T> {
+/**
+ * Long enough for a sleeping free-tier API to wake up (about a minute), short enough that a
+ * request that never answers fails instead of blocking the queries waiting on it.
+ */
+const REQUEST_TIMEOUT_MS = 90_000;
+
+async function request<T>(
+  path: string,
+  method: Method = 'GET',
+  body?: unknown,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<T> {
+  const signal = AbortSignal.timeout(timeoutMs);
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
@@ -48,12 +60,15 @@ async function request<T>(path: string, method: Method = 'GET', body?: unknown):
       credentials: 'same-origin',
       headers: body !== undefined ? { 'content-type': 'application/json' } : undefined,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
     });
   } catch {
     throw new ApiError(
       {
         code: 'INTERNAL_ERROR',
-        message: 'Could not reach the server. Check your connection.',
+        message: signal.aborted
+          ? 'The server took too long to answer. Please try again.'
+          : 'Could not reach the server. Check your connection.',
         retryable: true,
       },
       0,
@@ -126,6 +141,10 @@ export const api = {
   generationStatus: (id: string) =>
     request<{ kit_status: KitDetailDto['status']; job: GenerationJob | null }>(
       `/kits/${id}/generation-status`,
+      'GET',
+      undefined,
+      // polled every 1.5 s while the API is awake: a stuck check must not stop the polling
+      20_000,
     ),
   regenerateCompany: (id: string, force = false) =>
     request<{ job: GenerationJob }>(`/kits/${id}/regenerate/company`, 'POST', { force }),
