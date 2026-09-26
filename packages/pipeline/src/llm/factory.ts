@@ -62,7 +62,8 @@ export function createLlmProvider(
 ): LlmProvider {
   return new LimitedLlmProvider(createInnerProvider(config, options), {
     maxConcurrency: config.llm.maxConcurrency,
-    requestsPerMinute: config.llm.requestsPerMinute,
+    // the offline mock has no provider quota to respect
+    requestsPerMinute: config.llm.provider === 'mock' ? 100_000 : config.llm.requestsPerMinute,
     maxRetries: config.llm.maxRetries,
     ...options.limits,
   });
