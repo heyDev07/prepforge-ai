@@ -63,14 +63,15 @@ The guiding rule: **the LLM understands and writes; application code decides and
 |---|---|
 | Accounts | Register, sign in, sign out. Each user sees only their own kits |
 | Create | Paste a JD, the company URL and the number of days (1–60). Duplicate submissions are detected |
+| Several roles | **Upload a file** of JD-and-company pairs (JSON, up to 10, the batch command's input format). Each row is validated first; valid ones become kits that generate one after another, and invalid or duplicate rows are reported per row |
 | Generate | Live stage-by-stage progress (✓ ● ○), research details, structured errors and retry |
 | Research | Bounded crawl of the company website, plus a search of public interview discussion |
 | Company | Brief with cited sources. Edit, pin or regenerate it. Full research log |
 | Role | Title, seniority, location, responsibilities, and requirements with kind, priority and coverage |
 | Questions | Four categories. Inline edit, add, delete, pin, move between categories, drag-and-drop (mouse or keyboard), regenerate one category |
-| Flashcards | Edit, add, delete, pin |
+| Flashcards | Edit, add, delete, pin (pinned cards are listed first) |
 | Schedule | Exactly *N* days with focus, minutes and questions. Change the days or rebuild |
-| Practice | One card at a time, reveal (Space), confidence 1–5 (keys 1–5), weakest first, weak-areas mode |
+| Practice | One card at a time, reveal (Space), confidence 1–5 (keys 1–5), weakest first, in rounds that resume where you left off, weak-areas mode |
 | Weak Spots | Readiness score, weak requirements with reasons, confidence per category |
 | Export | Download the exact Appendix A JSON of any kit |
 | Batch | `npm run evaluate -- --input cases.json --output kits.json` |

@@ -6,7 +6,8 @@ import { Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import { Alert, Button, Card, Field, Input, Textarea } from '@/components/ui';
+import { BatchUpload } from '@/components/batch-upload';
+import { Alert, Button, Card, cx, Field, Input, Textarea } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { keys } from '@/lib/queries';
 
@@ -18,6 +19,7 @@ export default function NewKitPage() {
   const [days, setDays] = useState('5');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [mode, setMode] = useState<'single' | 'upload'>('single');
 
   async function create(allowDuplicate = false) {
     setPending(true);
@@ -59,7 +61,37 @@ export default function NewKitPage() {
         </p>
       </div>
 
-      {duplicateId ? (
+      <div
+        role="group"
+        aria-label="How to add roles"
+        className="flex w-fit rounded-md bg-slate-100 p-0.5"
+      >
+        {(
+          [
+            ['single', 'One role'],
+            ['upload', 'Upload a file'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={mode === value}
+            onClick={() => setMode(value)}
+            className={cx(
+              'rounded px-3 py-1.5 text-sm font-medium',
+              mode === value
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'upload' ? <BatchUpload /> : null}
+
+      {mode === 'single' && duplicateId ? (
         <Alert
           tone="blue"
           title="You already have a kit for this job and company"
@@ -84,11 +116,11 @@ export default function NewKitPage() {
         >
           Open the existing kit to keep your edits, or create a separate copy.
         </Alert>
-      ) : error && Object.keys(fields).length === 0 ? (
+      ) : mode === 'single' && error && Object.keys(fields).length === 0 ? (
         <Alert tone="red">{error.message}</Alert>
       ) : null}
 
-      <Card className="p-5 sm:p-6">
+      <Card className={cx('p-5 sm:p-6', mode !== 'single' && 'hidden')}>
         <form onSubmit={onSubmit} className="space-y-5" noValidate>
           <Field
             label="Job description"
