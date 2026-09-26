@@ -1,14 +1,15 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { Suspense, use } from 'react';
+import { Suspense, use, useEffect } from 'react';
 import { KitBuilder } from '@/components/builder/kit-builder';
 import { JobError, StageList } from '@/components/generation-progress';
 import { Card, EmptyState, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
 import { hostname } from '@/lib/labels';
-import { useGenerationStatus, useKit, useStartJob } from '@/lib/queries';
+import { keys, useGenerationStatus, useKit, useStartJob } from '@/lib/queries';
 
 export default function KitPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -49,6 +50,20 @@ function GenerationView({ id }: { id: string }) {
   const retry = useStartJob(id, () => api.generate(id), 'Generation restarted.');
   const job = status.data?.job ?? kit.data?.latest_job ?? null;
   const input = kit.data?.input;
+
+  // The job can finish while an older copy of the kit (still without content) is loading.
+  // Keep reloading the kit until its content arrives, so this view never gets stuck.
+  const queryClient = useQueryClient();
+  const jobDone = status.data?.job?.status === 'completed';
+  const kitMissing = Boolean(kit.data && !kit.data.kit);
+  const kitLoading = kit.isFetching;
+  useEffect(() => {
+    if (!jobDone || !kitMissing || kitLoading) return;
+    const timer = setTimeout(() => {
+      void queryClient.invalidateQueries({ queryKey: keys.kit(id) });
+    }, 1_500);
+    return () => clearTimeout(timer);
+  }, [id, jobDone, kitLoading, kitMissing, queryClient]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
