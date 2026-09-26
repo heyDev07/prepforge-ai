@@ -134,7 +134,7 @@ prepforge-ai/
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, TanStack Query 5, dnd-kit, Zod, Lucide icons |
 | Backend | Node.js 22, Express 5, TypeScript, Zod, Mongoose 9, MongoDB 7, bcrypt (bcryptjs), Helmet, express-rate-limit |
 | Research | native `fetch`, Cheerio, own RFC 9309 robots.txt parser |
-| LLM | provider abstraction: OpenAI (default) or Google Gemini, plus a deterministic offline mock |
+| LLM | **Google Gemini, model `gemini-flash-lite-latest`** (free tier; used for development, the evaluator runs and the deployment). Provider abstraction also supports OpenAI and a deterministic offline mock |
 | Tests | Vitest, Supertest, mongodb-memory-server, local mock websites |
 | Tooling | npm workspaces, tsx, tsup, ESLint (typescript-eslint, react-hooks), Prettier |
 
@@ -172,13 +172,13 @@ All variables live in the repository-root `.env` (template: `.env.example`).
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `LLM_PROVIDER` | `openai` | `openai`, `gemini` or `mock` (deterministic offline replies) |
+| `LLM_PROVIDER` | `gemini` | `gemini`, `openai` or `mock` (deterministic offline replies) |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | — / `gpt-4.1-mini` | OpenAI credentials and model |
 | `GEMINI_API_KEY` / `GEMINI_MODEL` | — / `gemini-flash-lite-latest` | Gemini credentials and model |
 | `LLM_MODEL` | — | Overrides the model for whichever provider is selected |
 | `LLM_BASE_URL` | — | Any OpenAI-compatible endpoint |
 | `LLM_MAX_CONCURRENCY` | `2` | LLM requests in flight, process-wide |
-| `LLM_REQUESTS_PER_MINUTE` | `60` | Sliding-window request cap (use ~15 on Gemini's free tier) |
+| `LLM_REQUESTS_PER_MINUTE` | `15` | Sliding-window request cap (Gemini's free tier allows 15 per minute) |
 | `LLM_MAX_RETRIES` / `LLM_TIMEOUT_MS` | `4` / `60000` | Transport retries and per-request timeout |
 | `SEARCH_PROVIDER` | `tavily` | `tavily`, `hn` (Hacker News API, no key), `brave`, or `none`. Without the chosen provider's key, the Hacker News search is used |
 | `TAVILY_API_KEY` / `BRAVE_API_KEY` | — | Search API keys ([Tavily](https://tavily.com) has a free tier of 1,000 credits/month) |
@@ -220,17 +220,16 @@ The batch evaluator does **not** need MongoDB.
 
 ## 9. LLM setup
 
-Set one provider in `.env`:
+**Provider and model used for this project: Google Gemini, `gemini-flash-lite-latest`**, on the free tier. It is the default, so a Gemini key is all you need:
 
 ```bash
-# OpenAI (default)
-LLM_PROVIDER=openai
-OPENAI_API_KEY=sk-...
-
-# or Google Gemini (free tier works)
 LLM_PROVIDER=gemini
-GEMINI_API_KEY=...
-LLM_REQUESTS_PER_MINUTE=15
+GEMINI_API_KEY=...            # free key: https://aistudio.google.com/apikey
+LLM_REQUESTS_PER_MINUTE=15    # the free tier's request limit
+
+# optional alternative (paid)
+# LLM_PROVIDER=openai
+# OPENAI_API_KEY=sk-...
 ```
 
 Then check it with a live smoke test (two small extraction calls):
@@ -435,6 +434,10 @@ Research happens in two separate stages, and both treat everything they fetch as
 - **Sources:** code maps the cited labels to URLs.
 - **Gaps:** code appends a *Research notes* line listing what was **not** found (no careers page, pages that failed, no public discussion).
 
+**Sources used:** the company's own public website (crawled as in section 17), the Tavily Search API (or the Hacker News Algolia API without a key) for public interview discussion, and the pasted job description. No job boards, logins or paid data.
+
+**Site terms:** the crawler identifies itself with its own user agent, obeys robots.txt (including `Crawl-delay`) and paces its requests, reads only public pages with a small page budget, never submits forms or signs in, and skips login, account, terms and privacy links. Search goes through the providers' official APIs within their terms.
+
 **Company name:** the name stated in the JD, then `og:site_name`, then the homepage title segment matching the domain, then the domain label.
 
 ## 17. Crawling strategy
@@ -635,6 +638,8 @@ A partially researched company still produces an **ok** kit with honest gaps. **
 | Out of credit / bad key / no key | Immediate `LLM_RATE_LIMITED` (quota) / `LLM_NOT_CONFIGURED`, no pointless retries |
 | Duplicate submission | 409 `DUPLICATE_KIT` with the existing kit (web); cached research reused (batch) |
 | 1-day / 60-day schedule | Coverage-protected compression / spaced review days |
+| Generation takes 90+ seconds | It runs as a background job; the page shows each stage live and can be left and reopened; requests time out instead of hanging |
+| Generation triggered twice | A second start while a job is queued or running gets 409 `JOB_IN_PROGRESS`; the page keeps following the existing job |
 | Server restart mid-job | Job marked failed (retryable); queued jobs resume |
 | Kit fails validation | Never saved; `KIT_VALIDATION_FAILED` |
 
