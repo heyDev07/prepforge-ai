@@ -661,15 +661,24 @@ Every error has one shape: `{ code, message, stage, retryable }`.
 
 ## 29. Deployment
 
-The intended free-tier setup is below. Deployment configuration will be added when hosting is set up.
+Free-tier setup: **MongoDB Atlas** (database), **Render** (API, from `render.yaml`) and **Vercel** (web, from `apps/web/vercel.json`). Deploy the API first, because the web build needs its URL.
 
-| Part | Platform | Key settings |
+| Part | Platform | Settings |
 |---|---|---|
-| Database | MongoDB Atlas (M0) | Database user; network access for the API host |
-| API | A Node host (e.g. Render web service) | Build `npm install && npm run build -w @prepforge/api`; start `npm run start:api`; env: `NODE_ENV=production`, `MONGODB_URI`, the LLM keys, `COOKIE_SECURE=true`, `CORS_ORIGINS=https://<web domain>`, `TRUST_PROXY=1`, `ALLOW_PRIVATE_URLS=false`; health check `/health` |
-| Web | A Next.js host (e.g. Vercel, root `apps/web`) | `API_URL=https://<api domain>` **at build time** |
+| Database | MongoDB Atlas (M0) | A database user with `readWrite` on the app's database; **Network Access `0.0.0.0/0`** (Render's free tier has no fixed IP) |
+| API | Render: **New → Blueprint**, select the repository | Everything is in `render.yaml`. Render asks for the secrets: `MONGODB_URI`, `GEMINI_API_KEY`, `TAVILY_API_KEY` and `CORS_ORIGINS` (the web URL). Health check: `/health` |
+| Web | Vercel: **Add New → Project**, import the repository | **Root Directory `apps/web`**; environment variable **`API_URL`** = the Render URL. The build fails with a clear message if `API_URL` is missing |
 
-The web app proxies `/api/*` to the API, so the session cookie belongs to the web domain. `SameSite=Lax` and `Secure` work without any third-party-cookie issues.
+Order:
+1. Render: create the blueprint, fill in the secrets (use a placeholder for `CORS_ORIGINS` at first), wait for **Live**, then open `https://<api>.onrender.com/health`.
+2. Vercel: import the project with Root Directory `apps/web` and `API_URL=https://<api>.onrender.com`, then deploy.
+3. Render: set `CORS_ORIGINS` to the Vercel URL (e.g. `https://prepforge-ai.vercel.app`, no trailing slash). Render redeploys automatically.
+
+Notes:
+- The web app proxies `/api/*` to the API, so the session cookie belongs to the web domain; `SameSite=Lax` and `Secure` work without third-party-cookie issues.
+- `TRUST_PROXY=2` because requests pass through two proxies (Vercel, then Render's load balancer); rate limits then see each user's real IP.
+- `API_URL` is read when the web app is **built**: after changing it, redeploy on Vercel.
+- Render's free tier sleeps after about 15 minutes without traffic; the first request afterwards takes about a minute. An uptime monitor that calls `/health` every 10 minutes keeps it awake.
 
 ## 30. Design trade-offs
 
