@@ -79,6 +79,12 @@ const WELL_KNOWN_PATHS: ReadonlyArray<readonly [SourceType, string[]]> = [
 
 const ROBOTS_MAX_BYTES = 512_000;
 
+/** Page kinds whose failure is worth telling the candidate about, with the label used. */
+const KEY_PAGE_TYPES: ReadonlyArray<readonly [string, readonly SourceType[]]> = [
+  ['careers', ['careers', 'interview']],
+  ['about', ['about']],
+];
+
 /** At most this many pages per site section, so one product family can't use up the budget. */
 const MAX_PAGES_PER_SECTION = 4;
 const LOCALE_SEGMENT = /^[a-z]{2}(?:[-_][a-z]{2,4})?$/i;
@@ -380,9 +386,29 @@ export async function crawlCompanySite(
   if (!ok.some((p) => p.source_type === 'about')) {
     limitations.push('No about or company page was found on the company website.');
   }
-  if (failed.length > 0) {
-    const reasons = [...new Set(failed.map((p) => describeFailure(p.fetch_status, p.http_status)))];
-    limitations.push(`${failed.length} page(s) could not be fetched (${reasons.join(', ')}).`);
+  // A failed page only matters to the candidate when it was the careers/interview or about
+  // page and no other page of that kind was read, or when most of the site failed. One slow
+  // ad or product page is normal on real sites and is only kept in the research log.
+  const reasonsOf = (list: ResearchPage[]) =>
+    [...new Set(list.map((p) => describeFailure(p.fetch_status, p.http_status)))].join(', ');
+  const keyFailures: ResearchPage[] = [];
+  for (const [label, types] of KEY_PAGE_TYPES) {
+    if (ok.some((p) => types.includes(p.source_type))) continue;
+    const missing = failed.filter((p) => types.includes(p.source_type));
+    if (missing.length === 0) continue;
+    keyFailures.push(...missing);
+    const list = missing.map((p) => `${p.url} (${describeFailure(p.fetch_status, p.http_status)})`);
+    limitations.push(`The ${label} page could not be fetched: ${list.join(', ')}.`);
+  }
+  const otherFailures = failed.filter((p) => !keyFailures.includes(p));
+  if (failed.length > ok.length) {
+    limitations.push(
+      `Most pages on the company website could not be fetched: ${failed.length} of ${failed.length + ok.length} (${reasonsOf(failed)}).`,
+    );
+  } else if (otherFailures.length > 0) {
+    limitations.push(
+      `${otherFailures.length} other page(s) could not be fetched (${reasonsOf(otherFailures)}).`,
+    );
   }
   if (truncated > 0) {
     limitations.push(

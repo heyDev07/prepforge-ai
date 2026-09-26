@@ -84,12 +84,14 @@ export function selectResearchSources(
 
 /** Human-readable research gaps, decided by code (not the model). */
 /**
- * True for limitations that are gaps a candidate should know about (no careers page, pages
- * that failed, robots.txt blocks). Crawl mechanics such as reaching the page limit or reading
- * a large page up to the byte cap are not gaps; they stay in the research log only.
+ * True for limitations that are gaps a candidate should know about: no careers or about page,
+ * a careers/about page that failed, most of the site failing, robots.txt blocks. Crawl
+ * mechanics (the page limit, the byte cap) and a few unimportant failed pages are not gaps;
+ * they stay in the research log only.
  */
 export function isResearchGap(limitation: string): boolean {
-  return /careers|about|could not be fetched|disallow|robots/i.test(limitation);
+  if (/^\d+ other page\(s\) could not be fetched/.test(limitation)) return false;
+  return /careers|about|most pages|disallow|robots/i.test(limitation);
 }
 
 export function researchNotes(bundle: ResearchBundle): string[] {

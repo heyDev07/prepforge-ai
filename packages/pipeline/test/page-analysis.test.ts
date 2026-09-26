@@ -4,6 +4,7 @@ import { deriveCompanyName } from '../src/research/company-name';
 import { extractPage } from '../src/research/extract-content';
 import { isExcludedResource, scoreLink } from '../src/research/link-ranker';
 import { siteSection } from '../src/research/crawler';
+import { isResearchGap } from '../src/research/excerpts';
 import { canonicalUrl, isSameSite, registrableDomain, subdomainTokens } from '../src/research/site';
 
 describe('site helpers', () => {
@@ -58,6 +59,20 @@ describe('subdomainTokens and siteSection', () => {
     );
     expect(section('https://acme.com/careers/backend')).toBe('acme.com/careers');
     expect(section('https://acme.com/')).toBe('acme.com/');
+  });
+});
+
+describe('isResearchGap', () => {
+  it.each([
+    ['No careers, jobs or hiring page was found on the company website.', true],
+    ['The careers page could not be fetched: https://acme.com/careers (timeout).', true],
+    ['Most pages on the company website could not be fetched: 6 of 9 (HTTP 403).', true],
+    ['robots.txt disallowed 2 relevant page(s), which were skipped.', true],
+    ['1 other page(s) could not be fetched (timeout).', false],
+    ['The 12-page limit was reached; 39 lower-ranked link(s) were not fetched.', false],
+    ['1 page(s) were larger than 1000000 bytes; only the first 1000000 bytes were read.', false],
+  ])('%s → %s', (limitation, expected) => {
+    expect(isResearchGap(limitation)).toBe(expected);
   });
 });
 

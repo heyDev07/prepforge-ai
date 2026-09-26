@@ -622,7 +622,7 @@ A partially researched company still produces an **ok** kit with honest gaps. **
 |---|---|
 | Invalid company URL / private address | `INVALID_INPUT` / `URL_NOT_ALLOWED` |
 | Homepage unreachable (DNS, refused, timeout, 5xx after retries) | `COMPANY_UNREACHABLE` |
-| Subpage 404 / timeout / non-HTML | Recorded in the research log; kit ok |
+| Subpage 404 / timeout / non-HTML | Recorded in the research log; kit ok. Shown in Research notes only if it was the careers/interview or about page (and no other such page was read), or if most of the site failed |
 | Page larger than `MAX_PAGE_BYTES` (common for real homepages) | First `MAX_PAGE_BYTES` read and used; noted; kit ok |
 | robots.txt restriction | Disallowed pages skipped and noted; kit ok |
 | No careers or about page | Noted in the brief; kit ok |

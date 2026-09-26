@@ -117,8 +117,13 @@ describe('crawlCompanySite', () => {
     expect(byPath['/handbook']).toMatchObject({ fetch_status: 'ok', source_type: 'culture' });
     expect(byPath['/engineering']).toMatchObject({ fetch_status: 'bad_content_type' });
     expect(byPath['/team']).toMatchObject({ fetch_status: 'redirect_error' });
-    const failures = result.limitations.find((l) => l.startsWith('5 page(s) could not be fetched'));
-    // reasons are listed in completion order; each names the actual failure, not "HTTP 200"
+    // the careers pages failed and no other careers page was read, so that is named
+    const careers = result.limitations.find((l) => l.startsWith('The careers page could not'));
+    expect(careers).toContain('/careers (HTTP 500)');
+    expect(careers).toContain('/jobs (HTTP 404)');
+    // 5 of 8 pages failed, so the site as a whole is reported; each reason is the real one
+    const most = result.limitations.find((l) => l.startsWith('Most pages'));
+    expect(most).toContain('5 of 8');
     for (const reason of [
       'HTTP 500',
       'HTTP 404',
@@ -126,9 +131,9 @@ describe('crawlCompanySite', () => {
       'bad content type',
       'redirect error',
     ]) {
-      expect(failures).toContain(reason);
+      expect(most).toContain(reason);
     }
-    expect(failures).not.toContain('HTTP 200');
+    expect(most).not.toContain('HTTP 200');
     expect(result.limitations).toContain(
       '1 page(s) were larger than 100000 bytes; only the first 100000 bytes were read.',
     );
