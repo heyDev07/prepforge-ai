@@ -62,6 +62,7 @@ ${countRule}
 4. "answer_outline": 2–5 short bullet points describing what a strong answer covers, not a full script. Never write requirement IDs inside the prompt or outline text.
 5. "difficulty": 1 (warm-up), 2 (standard) or 3 (hard), appropriate to the seniority.
 6. Do not repeat or closely paraphrase anything in the EXISTING_QUESTIONS source.
+7. Interview process: when the task names interview formats this company describes (for example a take-home assignment or a system design round), prepare the candidate for those rounds: write questions in the style of those rounds and name the round in the answer outline where it helps. INTERVIEW_PROCESS and INTERVIEW_DISCUSSION sources show how the company describes its process. When no format is named, do not assume any particular process.
 
 ${DATA_HANDLING_RULES}
 
@@ -91,6 +92,8 @@ export function buildQuestionsUser(options: {
   existing: UntrustedSource;
   company?: UntrustedSource;
   research?: UntrustedSource[];
+  /** Interview formats found by code (fixed labels) and the excerpts describing the process. */
+  process?: { formats: string[]; sources: UntrustedSource[] };
   mustIds: string[];
 }): string {
   const sources = [
@@ -100,6 +103,7 @@ export function buildQuestionsUser(options: {
     options.existing,
     ...(options.company ? [options.company] : []),
     ...(options.research ?? []),
+    ...(options.process?.sources ?? []),
   ];
   const task =
     options.count !== null
@@ -109,9 +113,14 @@ export function buildQuestionsUser(options: {
     options.mustIds.length > 0
       ? `\nMust-have requirement IDs to cover first: ${options.mustIds.join(', ')}.`
       : '';
-  return `${renderUntrusted(sources, { perSourceChars: 8_000, totalChars: 16_000 })}
+  const formats = options.process?.formats ?? [];
+  const process =
+    formats.length > 0
+      ? `\nInterview formats this company describes: ${formats.join('; ')}.`
+      : "\nThe research does not describe this company's interview format.";
+  return `${renderUntrusted(sources, { perSourceChars: 8_000, totalChars: 22_000 })}
 
-${task}${must}`;
+${task}${must}${process}`;
 }
 
 // ---------------------------------------------------------------------------------------

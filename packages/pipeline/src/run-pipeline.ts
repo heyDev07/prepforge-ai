@@ -42,6 +42,7 @@ import { assertUrlAllowed, parseHttpUrl, type LookupFn, type UrlPolicy } from '.
 import { deriveCompanyName } from './research/company-name';
 import { crawlCompanySite, type CrawlResult } from './research/crawler';
 import { isResearchGap, selectResearchSources } from './research/excerpts';
+import { findInterviewProcess, INTERVIEW_FORMAT_LABELS } from './research/interview-process';
 import { researchInterviews } from './search/interview-research';
 import type { SearchProvider } from './search/provider';
 import { validateKit, type KitIssue } from './validation/validate-kit';
@@ -348,7 +349,13 @@ async function execute(
     }
   });
   if (kit.questions.length === 0 && firstFailure) throw firstFailure;
-  t.complete(`${kit.questions.length} question(s) generated`);
+  const formats = findInterviewProcess(research).formats;
+  t.complete(
+    `${kit.questions.length} question(s) generated` +
+      (formats.length > 0
+        ? `, shaped by the interview process: ${formats.map((f) => INTERVIEW_FORMAT_LABELS[f]).join(', ')}`
+        : ''),
+  );
 
   // 7–8. deterministic coverage check and bounded second pass --------------------------
   t.start('checking_coverage');

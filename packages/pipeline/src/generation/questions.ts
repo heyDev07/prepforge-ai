@@ -10,6 +10,7 @@ import type { UntrustedSource } from '../llm/prompts/untrusted';
 import type { LlmProvider } from '../llm/provider';
 import { callStructured } from '../llm/structured-call';
 import { selectResearchSources } from '../research/excerpts';
+import { findInterviewProcess, INTERVIEW_FORMAT_LABELS } from '../research/interview-process';
 import type { GenerationContext } from './context';
 import { ALLOWED_KINDS, gapFillCategory, planQuestions, type CategoryPlan } from './question-plan';
 import { QuestionsOutputSchema, sanitizeQuestions } from './sanitize';
@@ -53,7 +54,17 @@ export function planFor(ctx: GenerationContext): CategoryPlan[] {
   const okPages = ctx.research.pages.filter((p) => p.fetch_status === 'ok').length;
   return planQuestions(ctx.requirements, ctx.role.seniority, {
     researchIsThin: okPages <= 1 && ctx.research.public_research.status !== 'found',
+    interviewFormats: findInterviewProcess(ctx.research).formats,
   });
+}
+
+/** The interview process found in research, as prompt input (labels come from code). */
+function processFor(ctx: GenerationContext, withSources: boolean) {
+  const found = findInterviewProcess(ctx.research);
+  return {
+    formats: found.formats.map((format) => INTERVIEW_FORMAT_LABELS[format]),
+    sources: withSources ? found.sources : [],
+  };
 }
 
 /** Generates the planned questions for one category. Returns [] when the plan asks for none. */
@@ -88,6 +99,8 @@ export async function generateCategoryQuestions(
           ? companySource(ctx)
           : undefined,
       research,
+      // company-fit already receives the interview pages among its research sources
+      process: processFor(ctx, plan.category !== 'company-fit'),
       mustIds: plan.mustIds,
     }),
     schema: QuestionsOutputSchema,
@@ -163,6 +176,7 @@ export async function generateQuestionsForRequirements(
         targets: requirementsSource('TARGET_REQUIREMENTS', group),
         existing: existingSource(existing.filter((q) => q.category === category)),
         company: companySource(ctx),
+        process: processFor(ctx, false),
         mustIds: group.map((r) => r.id),
       }),
       schema: QuestionsOutputSchema,

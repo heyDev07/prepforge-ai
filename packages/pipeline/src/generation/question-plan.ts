@@ -5,9 +5,11 @@
  *   technical      technical + domain requirements   clamp(2·must + nice, 3, 10)  (0 if none)
  *   behavioural    behavioural requirements          clamp(2·n, 3, 6); 2 if there are none
  *                  (falls back to all requirements)
- *   system-design  technical + domain requirements   junior 1 · mid/unspecified 2 · senior+ 3 (0 if none)
+ *   system-design  technical + domain requirements   junior 1 · mid/unspecified 2 · senior+ 3 (0 if none),
+ *                  +1 when the research describes a system design round
  *   company-fit    all requirements                  3, or 2 when research is thin
  */
+import type { InterviewFormat } from '../research/interview-process';
 import type { QuestionCategory, Requirement, RequirementKind } from '@prepforge/shared';
 
 export interface CategoryPlan {
@@ -57,7 +59,7 @@ function plan(category: QuestionCategory, count: number, eligible: Requirement[]
 export function planQuestions(
   requirements: Requirement[],
   seniority: string,
-  options: { researchIsThin: boolean },
+  options: { researchIsThin: boolean; interviewFormats?: readonly InterviewFormat[] },
 ): CategoryPlan[] {
   const technical = requirements.filter((r) => r.kind === 'technical' || r.kind === 'domain');
   const behavioural = requirements.filter((r) => r.kind === 'behavioural');
@@ -76,7 +78,15 @@ export function planQuestions(
       behavioural.length === 0 ? 2 : clamp(2 * behavioural.length, 3, 6),
       behavioural.length === 0 ? requirements : behavioural,
     ),
-    plan('system-design', technical.length === 0 ? 0 : systemDesignCount(seniority), technical),
+    plan(
+      'system-design',
+      technical.length === 0
+        ? 0
+        : // a published system design round earns one more question
+          systemDesignCount(seniority) +
+            (options.interviewFormats?.includes('system-design') ? 1 : 0),
+      technical,
+    ),
     plan('company-fit', options.researchIsThin ? 2 : 3, requirements),
   ];
 }

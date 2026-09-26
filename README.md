@@ -497,8 +497,16 @@ There are four separate calls: `generateTechnicalQuestions`, `generateBehavioura
 |---|---|---|
 | technical | technical + domain | clamp(2 × must + nice, 3, 10); 0 if none |
 | behavioural | behavioural (all requirements if there are none) | clamp(2 × behavioural, 3, 6); 2 if none |
-| system-design | technical + domain | junior 1 · mid/unspecified 2 · senior+ 3; 0 if none |
+| system-design | technical + domain | junior 1 · mid/unspecified 2 · senior+ 3, **+1 if the company describes a system design round**; 0 if none |
 | company-fit | all + company brief + research excerpts | 3, or 2 when research is thin |
+
+**The interview process shapes the questions.** A hiring-process page changes what questions make sense, so code first works out what the research says about *how* the company interviews (`research/interview-process.ts`):
+- **Where it looks:** only interview pages, careers pages that talk about interviewing, and public interview discussion. Marketing pages are ignored, so a product page that mentions "system design" doesn't count.
+- **What it finds:** fixed patterns detect four formats: take-home assignment, live coding or pairing, system design round, behavioural or values interview.
+- **How it is used:** every category's call receives the excerpts describing the process and a code-written line naming the formats found, with the instruction to prepare the candidate for those rounds. When nothing is found, the line says the research does not describe the process, and the model is told not to assume one. A published system design round also adds one system-design question to the plan.
+- **Visible:** the progress view says so, e.g. "21 question(s) generated, shaped by the interview process: take-home assignment, system design round".
+
+In a live run, a company that publishes "take-home or live pairing, then system design, then a values interview" got questions framed as a take-home exercise and a live pairing session, plus a fourth system-design question; a company that publishes nothing got neither.
 
 **Every generated question is then cleaned up by code:**
 - **Links:** IDs are normalised (`R2` → `r2`); unknown or kind-incompatible IDs are dropped (technical and system-design may only link technical/domain requirements); at most 3 per question.

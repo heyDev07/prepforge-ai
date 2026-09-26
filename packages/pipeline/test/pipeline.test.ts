@@ -164,6 +164,42 @@ describe('runPipeline with fixture JDs and mock company sites', () => {
   });
 });
 
+describe('interview process shapes the questions', () => {
+  it('gives every question category the formats the company publishes', async () => {
+    const llm = fixtureLlm();
+    const events: StageEvent[] = [];
+    const result = await runPipeline(
+      { jd: jd('jd-backend.txt'), company_url: sites.urls['acme-careers'], days: 5 },
+      deps({ llm }),
+      (event) => events.push(event),
+    );
+    for (const category of ['technical', 'behavioural', 'system-design']) {
+      const prompt = llm.callsFor(`questions:${category}`)[0]!.user;
+      expect(prompt).toContain(
+        'Interview formats this company describes: take-home assignment; live coding or pairing; system design round; behavioural or values interview.',
+      );
+      expect(prompt).toContain('INTERVIEW_PROCESS_1');
+    }
+    // senior role: 3 system design questions, plus 1 for the published system design round
+    expect(result.kit.questions.filter((q) => q.category === 'system-design')).toHaveLength(4);
+    const detail = events.find(
+      (e) => e.stage === 'generating_questions' && e.status === 'completed',
+    )?.detail;
+    expect(detail).toContain('shaped by the interview process: take-home assignment');
+  });
+
+  it('says so when the research describes no interview process', async () => {
+    const llm = fixtureLlm();
+    await runPipeline(
+      { jd: jd('jd-thin.txt'), company_url: sites.urls['no-careers'], days: 2 },
+      deps({ llm }),
+    );
+    const prompt = llm.callsFor('questions:behavioural')[0]!.user;
+    expect(prompt).toContain("The research does not describe this company's interview format.");
+    expect(prompt).not.toContain('INTERVIEW_PROCESS_1');
+  });
+});
+
 describe('coverage second pass', () => {
   /** Each category only returns questions about its first requirement → the rest are uncovered. */
   const narrow = (request: LlmRequest) => {
