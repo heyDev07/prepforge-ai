@@ -4,7 +4,9 @@
  * The model proposes; code decides what is kept:
  *   - every requirement must quote the JD; unsupported quotes are dropped (no invention)
  *   - wording that drifts from the JD is replaced by the verified quote
- *   - "preferred / bonus / a plus / nice to have" markers force priority "nice"
+ *   - priority is decided by code where the JD is explicit, judged by the quote's own sentence
+ *     and its section: "preferred / bonus / a plus / nice to have" force "nice", sections such
+ *     as "Requirements" or "Required qualifications" force "must"
  *   - seniority, location and company are kept only when the JD actually states them
  *   - duplicates are removed, order follows the JD, IDs r1..rn are assigned here
  */
@@ -37,6 +39,38 @@ export const THIN_JD_THRESHOLD = 3;
 
 const NICE_MARKERS =
   /\b(nice[\s-]to[\s-]have|bonus|preferred|preferably|a plus|is a plus|plus if|desirable|good to have|nice if|ideally|optional|not required|extra credit)\b/i;
+
+/** Section labels that mean "required": items under them are must-haves unless marked optional. */
+const REQUIRED_LABELS =
+  /\b(requirements?|required|must[\s-]haves?|minimum|basic qualifications?|qualifications?|what you (need|bring|have)|you have)\b/i;
+
+/** Sentence ends and inline section labels such as "Nice to have:" split a line into parts. */
+const INLINE_LABEL = /^([A-Z][\w '’/&()+-]{1,40}):\s*/;
+
+/**
+ * The part of a JD line that a quote comes from, and the section label it sits under.
+ * JDs are often pasted as one paragraph ("Requirements: A, B. Nice to have: C."), so the whole
+ * line is not a reliable context: only the quote's own sentence and the nearest label count.
+ */
+export function quoteContext(
+  line: string,
+  heading: string,
+  quote: string,
+): { sentence: string; label: string } {
+  const parts = line.split(/(?<=[.;!?])\s+|\s+(?=[A-Z][\w '’/&()+-]{1,40}:\s)/);
+  let label = heading;
+  let best = { sentence: line, label: heading, score: -1 };
+  const target = normalizeForMatch(quote);
+  for (const part of parts) {
+    const inline = INLINE_LABEL.exec(part);
+    if (inline) label = inline[1]!;
+    const normalized = normalizeForMatch(part);
+    if (!normalized) continue;
+    const score = normalized.includes(target) ? 2 : tokenCoverage(quote, buildMatchIndex(part));
+    if (score > best.score) best = { sentence: part, label, score };
+  }
+  return { sentence: best.sentence, label: best.label };
+}
 
 export interface DroppedRequirement {
   text: string;
@@ -144,8 +178,14 @@ export function postProcessExtraction(jd: string, raw: ExtractionOutput): Extrac
       continue;
     }
     seen.add(key);
-    const marked = NICE_MARKERS.test(item.line) || NICE_MARKERS.test(item.heading);
-    const priority: RequirementPriority = marked ? 'nice' : item.raw.priority;
+    // code, not the model, has the last word where the JD is explicit
+    const context = quoteContext(item.line, item.heading, item.raw.source_quote);
+    const priority: RequirementPriority =
+      NICE_MARKERS.test(context.sentence) || NICE_MARKERS.test(context.label)
+        ? 'nice'
+        : REQUIRED_LABELS.test(context.label)
+          ? 'must'
+          : item.raw.priority;
     requirements.push({
       id: `r${requirements.length + 1}`,
       text,

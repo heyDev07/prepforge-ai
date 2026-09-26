@@ -121,7 +121,7 @@ prepforge-ai/
 
 | The LLM | Code |
 |---|---|
-| Reads the JD: title, seniority wording, responsibilities, requirement text, kind and priority, and a verbatim quote for each requirement | Keeps a requirement only if its quote is in the JD, forces `nice` when the JD says preferred / bonus / a plus, assigns `r1…rn` in JD order |
+| Reads the JD: title, seniority wording, responsibilities, requirement text, kind and priority, and a verbatim quote for each requirement | Keeps a requirement only if its quote is in the JD, decides `must`/`nice` where the JD is explicit (preferred / a plus → `nice`; a "Requirements" section → `must`), assigns `r1…rn` in JD order |
 | Writes the company summary and cites source labels | Chooses which excerpts to send, maps labels to URLs, appends research gaps |
 | Writes questions, answer outlines, suggested difficulty and requirement links | Decides how many questions per category and which requirements each call may use, drops invalid or kind-incompatible links, removes duplicates, assigns IDs |
 | Writes flashcards | Checks links, removes duplicates, assigns IDs, fills must-haves that lack a card |
@@ -480,7 +480,7 @@ Then code decides what is kept:
 |---|---|
 | No invention | A requirement survives only if its quote is found in the JD (normalised substring, or ≥ 85% of its content words) |
 | Faithful wording | If the model's wording adds facts (below 60% of words found in the JD, ignoring framing words like "proficiency"), the verified quote replaces it |
-| Priority | "Nice to have / bonus / preferred / a plus / desirable" in the line or its section heading forces `nice` |
+| Priority | Judged by the requirement's own sentence and the section it sits under, so a JD pasted as one paragraph works too. "Nice to have / bonus / preferred / a plus / desirable" forces `nice`; a "Requirements / Required / Minimum qualifications / Must have" section forces `must`; otherwise the model's choice stands |
 | Scalar fields | Seniority, location and company are kept only when the JD states them, otherwise `"Not specified"` |
 | Order and IDs | Duplicates removed, sorted by position in the JD, `r1…rn` assigned by code |
 | Thin JD | A two-line JD yields one or two requirements plus an honest note; zero verifiable requirements fails with `INSUFFICIENT_JD` |

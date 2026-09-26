@@ -107,6 +107,85 @@ describe('postProcessExtraction', () => {
     expect(mixed.requirements[0]!.priority).toBe('nice');
   });
 
+  it('judges priority by sentence and section when the JD is a single paragraph', () => {
+    const jd =
+      'Backend engineer at Acme. You will build payment APIs. Requirements: 3+ years of backend development, strong system design, clear communication. Nice to have: fintech experience, Kubernetes.';
+    const req = (text: string, quote: string, priority: 'must' | 'nice') => ({
+      text,
+      kind: 'technical' as const,
+      priority,
+      source_quote: quote,
+    });
+    const result = postProcessExtraction(
+      jd,
+      reply({
+        requirements: [
+          req('3+ years of backend development', '3+ years of backend development', 'nice'),
+          req('Strong system design', 'strong system design', 'must'),
+          req('Fintech experience', 'fintech experience', 'must'),
+          req('Kubernetes', 'Kubernetes', 'must'),
+        ],
+      }),
+    );
+    expect(result.requirements.map((r) => [r.text, r.priority])).toEqual([
+      ['3+ years of backend development', 'must'], // under "Requirements:", whatever the model said
+      ['Strong system design', 'must'],
+      ['Fintech experience', 'nice'],
+      ['Kubernetes', 'nice'],
+    ]);
+  });
+
+  it('keeps a "plus" in one sentence from affecting the others', () => {
+    const jd =
+      'You write TypeScript every day and review code carefully. Experience with Go is a plus.';
+    const result = postProcessExtraction(
+      jd,
+      reply({
+        requirements: [
+          {
+            text: 'TypeScript',
+            kind: 'technical',
+            priority: 'must',
+            source_quote: 'You write TypeScript every day',
+          },
+          { text: 'Go', kind: 'technical', priority: 'must', source_quote: 'Experience with Go' },
+        ],
+      }),
+    );
+    expect(result.requirements.map((r) => r.priority)).toEqual(['must', 'nice']);
+  });
+
+  it('treats a "Required qualifications" heading as must-have', () => {
+    const jd =
+      'Required qualifications:\n- Degree in computer science\n- Experience with Java\n\nPreferred qualifications:\n- Experience with Azure';
+    const result = postProcessExtraction(
+      jd,
+      reply({
+        requirements: [
+          {
+            text: 'CS degree',
+            kind: 'domain',
+            priority: 'nice',
+            source_quote: 'Degree in computer science',
+          },
+          {
+            text: 'Java',
+            kind: 'technical',
+            priority: 'nice',
+            source_quote: 'Experience with Java',
+          },
+          {
+            text: 'Azure',
+            kind: 'technical',
+            priority: 'must',
+            source_quote: 'Experience with Azure',
+          },
+        ],
+      }),
+    );
+    expect(result.requirements.map((r) => r.priority)).toEqual(['must', 'must', 'nice']);
+  });
+
   it('drops requirements that are not in the JD (no invention)', () => {
     const result = postProcessExtraction(
       thinJd,
