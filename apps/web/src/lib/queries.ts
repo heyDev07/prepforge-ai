@@ -11,6 +11,7 @@ import { useToast } from '@/components/toast';
 import type { ApiError } from './api';
 import { api, type KitResponse } from './api';
 import { checkGenerationStatus, isActive, keys } from './job-status';
+import { kitEditOptions } from './kit-edits';
 
 export { keys };
 
@@ -58,11 +59,12 @@ export function useWeakSpots(id: string, enabled = true) {
 
 /**
  * Mutation that returns an updated kit: the response replaces the cached kit (no refetch),
- * and a stale-revision conflict reloads the kit and tells the user.
+ * and a stale-revision conflict reloads the kit and tells the user. Edits to one kit are sent
+ * one at a time, each with the latest revision (see kit-edits.ts).
  */
 export function useKitMutation<TVariables, TData extends KitResponse>(
   id: string,
-  mutationFn: (variables: TVariables) => Promise<TData>,
+  mutationFn: (variables: TVariables, revision: number) => Promise<TData>,
   options: { success?: string | ((data: TData) => string) } & Omit<
     UseMutationOptions<TData, ApiError, TVariables>,
     'mutationFn'
@@ -72,8 +74,8 @@ export function useKitMutation<TVariables, TData extends KitResponse>(
   const toast = useToast();
   const { success, onSuccess, onError, ...rest } = options;
   return useMutation<TData, ApiError, TVariables>({
-    mutationFn,
     ...rest,
+    ...kitEditOptions(queryClient, id, mutationFn),
     onSuccess: (data, variables, ...other) => {
       queryClient.setQueryData(keys.kit(id), data.kit);
       void queryClient.invalidateQueries({ queryKey: keys.weakSpots(id) });

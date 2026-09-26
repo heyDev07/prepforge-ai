@@ -46,7 +46,7 @@ const STATE_BADGE = {
 } as const;
 
 export function QuestionsTab() {
-  const { id, kit, detail, busy } = useBuilder();
+  const { id, kit, busy } = useBuilder();
   const [category, setCategory] = useState<QuestionCategory>('technical');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -66,7 +66,7 @@ export function QuestionsTab() {
 
   const add = useKitMutation(
     id,
-    (input: QuestionInput) => api.addQuestion(id, { ...input, revision: detail.revision }),
+    (input: QuestionInput, revision: number) => api.addQuestion(id, { ...input, revision }),
     {
       success: 'Question added.',
       onSuccess: () => setAdding(false),
@@ -74,18 +74,18 @@ export function QuestionsTab() {
   );
   const update = useKitMutation(
     id,
-    ({
-      questionId,
-      patch,
-    }: {
-      questionId: string;
-      patch: Parameters<typeof api.updateQuestion>[2];
-    }) => api.updateQuestion(id, questionId, { ...patch, revision: detail.revision }),
+    (
+      {
+        questionId,
+        patch,
+      }: { questionId: string; patch: Parameters<typeof api.updateQuestion>[2] },
+      revision: number,
+    ) => api.updateQuestion(id, questionId, { ...patch, revision }),
     { onSuccess: () => setEditingId(null) },
   );
   const remove = useKitMutation(
     id,
-    (questionId: string) => api.deleteQuestion(id, questionId, detail.revision),
+    (questionId: string, revision: number) => api.deleteQuestion(id, questionId, revision),
     {
       success: 'Question deleted.',
       onSettled: () => setDeleting(null),
@@ -93,7 +93,8 @@ export function QuestionsTab() {
   );
   const reorder = useKitMutation(
     id,
-    (orderedIds: string[]) => api.reorderQuestions(id, category, orderedIds, detail.revision),
+    (orderedIds: string[], revision: number) =>
+      api.reorderQuestions(id, category, orderedIds, revision),
     { onSettled: () => setDragOrder(null) },
   );
   const regenerate = useStartJob(

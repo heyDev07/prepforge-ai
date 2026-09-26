@@ -29,8 +29,8 @@ export function CompanyTab() {
 
   const save = useKitMutation(
     id,
-    (patch: { summary?: string; what_they_do?: string; pinned?: boolean }) =>
-      api.updateKit(id, { company_brief: patch, revision: detail.revision }),
+    (patch: { summary?: string; what_they_do?: string; pinned?: boolean }, revision: number) =>
+      api.updateKit(id, { company_brief: patch, revision }),
     { onSuccess: () => setEditing(false) },
   );
   const regenerate = useStartJob(

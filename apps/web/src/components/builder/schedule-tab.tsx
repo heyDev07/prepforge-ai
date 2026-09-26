@@ -10,18 +10,22 @@ import { useKitMutation } from '@/lib/queries';
 import { useBuilder } from './context';
 
 export function ScheduleTab() {
-  const { id, kit, detail, busy } = useBuilder();
+  const { id, kit, busy } = useBuilder();
   const [days, setDays] = useState(String(kit.schedule.days_available));
   const questions = new Map(kit.questions.map((q) => [q.id, q]));
 
   const changeDays = useKitMutation(
     id,
-    (value: number) => api.updateKit(id, { days_available: value, revision: detail.revision }),
+    (value: number, revision: number) => api.updateKit(id, { days_available: value, revision }),
     { success: (data) => `Schedule rebuilt for ${data.kit.kit?.schedule.days_available} day(s).` },
   );
-  const rebuild = useKitMutation(id, () => api.regenerateSchedule(id, detail.revision), {
-    success: 'Schedule rebuilt. Weak areas from practice are prioritised.',
-  });
+  const rebuild = useKitMutation(
+    id,
+    (_: void, revision: number) => api.regenerateSchedule(id, revision),
+    {
+      success: 'Schedule rebuilt. Weak areas from practice are prioritised.',
+    },
+  );
 
   function submit(event: FormEvent) {
     event.preventDefault();

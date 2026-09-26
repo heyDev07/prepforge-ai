@@ -75,7 +75,7 @@ function FlashcardForm({
 }
 
 export function FlashcardsTab() {
-  const { id, kit, detail, busy } = useBuilder();
+  const { id, kit, busy } = useBuilder();
   const requirements = useRequirementMap();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export function FlashcardsTab() {
 
   const add = useKitMutation(
     id,
-    (input: FlashcardInput) => api.addFlashcard(id, { ...input, revision: detail.revision }),
+    (input: FlashcardInput, revision: number) => api.addFlashcard(id, { ...input, revision }),
     {
       success: 'Flashcard added.',
       onSuccess: () => setAdding(false),
@@ -91,13 +91,15 @@ export function FlashcardsTab() {
   );
   const update = useKitMutation(
     id,
-    ({ cardId, patch }: { cardId: string; patch: Parameters<typeof api.updateFlashcard>[2] }) =>
-      api.updateFlashcard(id, cardId, { ...patch, revision: detail.revision }),
+    (
+      { cardId, patch }: { cardId: string; patch: Parameters<typeof api.updateFlashcard>[2] },
+      revision: number,
+    ) => api.updateFlashcard(id, cardId, { ...patch, revision }),
     { onSuccess: () => setEditingId(null) },
   );
   const remove = useKitMutation(
     id,
-    (cardId: string) => api.deleteFlashcard(id, cardId, detail.revision),
+    (cardId: string, revision: number) => api.deleteFlashcard(id, cardId, revision),
     {
       success: 'Flashcard deleted.',
       onSettled: () => setDeleting(null),
