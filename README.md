@@ -649,7 +649,7 @@ A partially researched company still produces an **ok** kit with honest gaps. **
 | 1-day / 60-day schedule | Coverage-protected compression / spaced review days |
 | Generation takes 90+ seconds | It runs as a background job; the page shows each stage live and can be left and reopened; requests time out instead of hanging |
 | Generation triggered twice | A second start while a job is queued or running gets 409 `JOB_IN_PROGRESS`; the page keeps following the existing job |
-| Server restart mid-job | Job marked failed (retryable); queued jobs resume |
+| Server restart or redeploy mid-job | The server holding a job refreshes a heartbeat every 15 s. A job whose heartbeat is over 90 s old is marked failed (retryable) the next time the kit or dashboard is read, and at startup; queued jobs resume. A job is claimed in one write, so two servers never run it twice |
 | Kit fails validation | Never saved; `KIT_VALIDATION_FAILED` |
 
 Every error has one shape: `{ code, message, stage, retryable }`.

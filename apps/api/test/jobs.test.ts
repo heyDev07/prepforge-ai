@@ -2,6 +2,7 @@ import { MockLlmProvider } from '@prepforge/pipeline';
 import { fixtureLlmResponder } from '@prepforge/pipeline/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GenerationJobModel, Kit } from '../src/models';
+import { STALE_JOB_MS } from '../src/services/job-runner';
 import {
   fixtureJd,
   generatedKit,
@@ -32,6 +33,9 @@ afterAll(async () => {
   openGate();
   await h.close();
 });
+
+/** A heartbeat older than the stale limit: the server that held the job has gone. */
+const longAgo = () => new Date(Date.now() - STALE_JOB_MS - 60_000);
 
 const waitFor = async (check: () => Promise<boolean>) => {
   for (let i = 0; i < 100; i++) {
@@ -98,7 +102,7 @@ describe('job locking', () => {
 });
 
 describe('restart recovery', () => {
-  it('fails interrupted jobs and resumes queued ones', async () => {
+  it('fails interrupted jobs, leaves live ones alone and resumes queued ones', async () => {
     const agent = await signedInAgent(h.app);
     const created = await agent.post('/api/kits').send({
       jd: fixtureJd('jd-thin.txt'),
@@ -114,6 +118,16 @@ describe('restart recovery', () => {
       type: 'generate',
       status: 'running',
       currentStage: 'researching_company',
+      heartbeatAt: longAgo(),
+    });
+    // still running on another server during a redeploy: its heartbeat is fresh
+    const live = await GenerationJobModel.create({
+      kitId: interruptedKit!._id,
+      userId: interruptedKit!.userId,
+      type: 'regenerate_questions',
+      category: 'technical',
+      status: 'running',
+      heartbeatAt: new Date(),
     });
 
     const queuedKit = await agent.post('/api/kits').send({
@@ -136,6 +150,78 @@ describe('restart recovery', () => {
     expect(failed).toMatchObject({ status: 'failed' });
     expect(failed!.error).toMatchObject({ retryable: true, stage: 'researching_company' });
     expect((await Kit.findById(interruptedKit!._id).lean())!.status).toBe('failed');
+    expect((await GenerationJobModel.findById(live._id).lean())!.status).toBe('running');
     expect((await GenerationJobModel.findById(queued._id).lean())!.status).toBe('completed');
+    await GenerationJobModel.deleteOne({ _id: live._id });
+  });
+});
+
+describe('jobs whose server has gone', () => {
+  it('are failed as retryable when the kit is next looked at, so the user can retry', async () => {
+    const agent = await signedInAgent(h.app);
+    const created = await agent.post('/api/kits').send({
+      jd: fixtureJd('jd-thin.txt'),
+      company_url: h.sites.urls['no-careers'],
+      days: 1,
+      allow_duplicate: true,
+    });
+    const id = created.body.kit.id;
+    const kit = await Kit.findById(id);
+    await Kit.updateOne({ _id: kit!._id }, { $set: { status: 'generating' } });
+    // the server running it was stopped mid-job, after the new server had already recovered
+    await GenerationJobModel.create({
+      kitId: kit!._id,
+      userId: kit!.userId,
+      type: 'generate',
+      status: 'running',
+      currentStage: 'researching_interviews',
+      heartbeatAt: longAgo(),
+    });
+
+    const listed = (await agent.get('/api/kits')).body.kits.find(
+      (k: { id: string }) => k.id === id,
+    );
+    expect(listed).toMatchObject({ status: 'failed', latest_job: { status: 'failed' } });
+
+    const status = await agent.get(`/api/kits/${id}/generation-status`);
+    expect(status.body.kit_status).toBe('failed');
+    expect(status.body.job.error).toMatchObject({
+      retryable: true,
+      stage: 'researching_interviews',
+      message: expect.stringContaining('interrupted'),
+    });
+
+    const retry = await agent.post(`/api/kits/${id}/generate`);
+    expect(retry.status).toBe(202);
+    await h.jobs.idle();
+    expect((await agent.get(`/api/kits/${id}`)).body.kit.status).toBe('ready');
+  });
+
+  it('never expires a job this server is still running, even if a heartbeat write was missed', async () => {
+    const agent = await signedInAgent(h.app);
+    const created = await agent.post('/api/kits').send({
+      jd: fixtureJd('jd-thin.txt'),
+      company_url: h.sites.urls['no-careers'],
+      days: 1,
+      allow_duplicate: true,
+    });
+    const id = created.body.kit.id;
+
+    closeGate();
+    const started = await agent.post(`/api/kits/${id}/generate`);
+    await waitFor(
+      async () => (await GenerationJobModel.findById(started.body.job.id))?.status === 'running',
+    );
+    await GenerationJobModel.updateOne(
+      { _id: started.body.job.id },
+      { $set: { heartbeatAt: longAgo() } },
+    );
+
+    const status = await agent.get(`/api/kits/${id}/generation-status`);
+    expect(status.body.job.status).toBe('running');
+
+    openGate();
+    await h.jobs.idle();
+    expect((await agent.get(`/api/kits/${id}`)).body.kit.status).toBe('ready');
   });
 });

@@ -4,6 +4,11 @@
  *
  *   POST /generate → job "queued" → runner picks it up → "running" with per-stage updates
  *   → "completed" (kit saved) or "failed" (structured error; kit untouched on regeneration)
+ *
+ * A server that holds a job (queued or running) refreshes its heartbeat. If the server goes
+ * away mid-job (a crash, or a redeploy that starts the new server before the old one takes
+ * its last job), the heartbeat stops; the job is then failed as retryable the next time
+ * anyone looks at it, instead of showing "running" forever.
  */
 import {
   regenerateCategory,
@@ -29,6 +34,22 @@ import { GenerationJobModel, Kit, type JobDoc, type KitDoc } from '../models';
 import { findActiveJob, jobToDto, saveKit, weakRequirementIds } from './kits';
 
 export type PipelineServices = Omit<PipelineDeps, 'config' | 'signal'>;
+
+export const HEARTBEAT_INTERVAL_MS = 15_000;
+/** Six missed heartbeats: long enough to ride out a slow database write. */
+export const STALE_JOB_MS = 90_000;
+const ACTIVE: ('queued' | 'running')[] = ['queued', 'running'];
+const INTERRUPTED_MESSAGE =
+  'Generation was interrupted because the server restarted. Please retry.';
+
+/** Active jobs whose server has stopped refreshing them (older jobs fall back to updatedAt). */
+function staleFilter(now = Date.now()) {
+  const cutoff = new Date(now - STALE_JOB_MS);
+  return {
+    status: { $in: ACTIVE },
+    $or: [{ heartbeatAt: { $lt: cutoff } }, { heartbeatAt: null, updatedAt: { $lt: cutoff } }],
+  };
+}
 
 /** Stages shown for regeneration jobs (a subset of the full pipeline). */
 const JOB_STAGES: Record<Exclude<JobType, 'generate'>, GenerationStage[]> = {
@@ -143,6 +164,9 @@ export class JobRunner {
   private readonly queue: string[] = [];
   private running = 0;
   private idleWaiters: Array<() => void> = [];
+  /** Jobs this server has queued or is running, kept alive by the heartbeat. */
+  private readonly held = new Set<string>();
+  private heartbeat: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly config: ApiConfig,
@@ -168,6 +192,7 @@ export class JobRunner {
       type,
       category: options.category ?? null,
       options: options.params ?? {},
+      heartbeatAt: new Date(),
     });
     await Kit.updateOne(
       { _id: kit._id },
@@ -179,7 +204,68 @@ export class JobRunner {
 
   enqueue(jobId: string) {
     this.queue.push(jobId);
+    this.held.add(jobId);
+    this.startHeartbeat();
     this.pump();
+  }
+
+  private startHeartbeat() {
+    if (this.heartbeat) return;
+    this.heartbeat = setInterval(() => void this.beat(), HEARTBEAT_INTERVAL_MS);
+    this.heartbeat.unref(); // never keeps the process (or a test run) alive
+  }
+
+  private async beat() {
+    if (this.held.size === 0) return;
+    try {
+      await GenerationJobModel.updateMany(
+        { _id: { $in: [...this.held] }, status: { $in: ACTIVE } },
+        { $set: { heartbeatAt: new Date() } },
+      );
+    } catch (error) {
+      console.error('[jobs] heartbeat failed', error);
+    }
+  }
+
+  /**
+   * Fails active jobs whose server has gone (see the file header). Called before a kit or the
+   * kit list is read, so the interface shows a retryable failure. Returns how many it failed.
+   */
+  async expireStale(scope: { kitId: Types.ObjectId } | { userId: Types.ObjectId }) {
+    const stale = await GenerationJobModel.find({ ...scope, ...staleFilter() }).lean<JobDoc[]>();
+    let expired = 0;
+    for (const job of stale) {
+      if (this.held.has(String(job._id))) continue; // ours and alive; a heartbeat write failed
+      if (await this.failInterrupted(job)) expired++;
+    }
+    return expired;
+  }
+
+  /** Marks a job failed as interrupted, unless it has moved on meanwhile. */
+  private async failInterrupted(job: JobDoc): Promise<boolean> {
+    const result = await GenerationJobModel.updateOne(
+      { _id: job._id, status: job.status },
+      {
+        $set: {
+          status: 'failed',
+          completedAt: new Date(),
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: INTERRUPTED_MESSAGE,
+            stage: job.currentStage,
+            retryable: true,
+          },
+        },
+      },
+    );
+    if (result.modifiedCount === 0) return false;
+    if (job.type === 'generate') {
+      await Kit.updateOne(
+        { _id: job.kitId, status: 'generating' },
+        { $set: { status: 'failed' }, $inc: { revision: 1 } },
+      );
+    }
+    return true;
   }
 
   /** Resolves when no job is queued or running (used by tests and graceful shutdown). */
@@ -188,32 +274,17 @@ export class JobRunner {
     return new Promise((resolve) => this.idleWaiters.push(resolve));
   }
 
-  /** After a restart: fail jobs that were mid-run, re-queue jobs that never started. */
+  /**
+   * After a restart: fail jobs whose server has gone, and queue jobs that never started. A job
+   * still running with a fresh heartbeat belongs to another live server (during a redeploy the
+   * old one keeps working until it stops) and is left alone.
+   */
   async recover(): Promise<void> {
-    const interrupted = await GenerationJobModel.find({ status: 'running' }).lean<JobDoc[]>();
-    for (const job of interrupted) {
-      await GenerationJobModel.updateOne(
-        { _id: job._id },
-        {
-          $set: {
-            status: 'failed',
-            completedAt: new Date(),
-            error: {
-              code: 'INTERNAL_ERROR',
-              message: 'Generation was interrupted by a server restart. Please retry.',
-              stage: job.currentStage,
-              retryable: true,
-            },
-          },
-        },
-      );
-      if (job.type === 'generate') {
-        await Kit.updateOne(
-          { _id: job.kitId, status: 'generating' },
-          { $set: { status: 'failed' } },
-        );
-      }
-    }
+    const interrupted = await GenerationJobModel.find({
+      ...staleFilter(),
+      status: 'running',
+    }).lean<JobDoc[]>();
+    for (const job of interrupted) await this.failInterrupted(job);
     const queued = await GenerationJobModel.find({ status: 'queued' })
       .sort({ createdAt: 1 })
       .lean<JobDoc[]>();
@@ -225,6 +296,7 @@ export class JobRunner {
       const jobId = this.queue.shift()!;
       this.running++;
       void this.execute(jobId).finally(() => {
+        this.held.delete(jobId);
         this.running--;
         this.pump();
         if (this.running === 0 && this.queue.length === 0) {
@@ -235,15 +307,16 @@ export class JobRunner {
   }
 
   private async execute(jobId: string) {
-    const job = await GenerationJobModel.findById(jobId).lean<JobDoc>();
-    if (!job || job.status !== 'queued') return;
+    // claimed in one write, so two servers can never both run a job
+    const job = await GenerationJobModel.findOneAndUpdate(
+      { _id: jobId, status: 'queued' },
+      { $set: { status: 'running', startedAt: new Date(), heartbeatAt: new Date() } },
+      { new: true },
+    ).lean<JobDoc>();
+    if (!job) return;
     const kit = await Kit.findById(job.kitId).lean<KitDoc>();
     const sequence = job.type === 'generate' ? PIPELINE_STAGE_SEQUENCE : JOB_STAGES[job.type];
     const progress = new JobProgress(job._id, sequence);
-    await GenerationJobModel.updateOne(
-      { _id: job._id },
-      { $set: { status: 'running', startedAt: new Date() } },
-    );
 
     const signal = AbortSignal.timeout(this.config.pipeline.pipeline.caseTimeoutMs);
     const deps: PipelineDeps = { ...this.services, config: this.config.pipeline, signal };

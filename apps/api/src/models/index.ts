@@ -91,6 +91,8 @@ const jobSchema = new Schema(
     error: { type: Schema.Types.Mixed, default: null },
     startedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
+    /** Refreshed while a server holds the job; a stale one means that server has gone. */
+    heartbeatAt: { type: Date, default: null },
   },
   { timestamps: true, minimize: false },
 );

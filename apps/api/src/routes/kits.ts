@@ -61,7 +61,13 @@ export function kitsRouter(config: ApiConfig, jobs: JobRunner): Router {
   router.use(requireAuth);
   const maxCoveragePasses = config.pipeline.pipeline.maxCoveragePasses;
 
-  const load = (req: Request) => findOwnedKit(currentUser(req).id, String(req.params.id));
+  /** The signed-in user's kit, after failing any job whose server has gone (job-runner.ts). */
+  const load = async (req: Request) => {
+    const doc = await findOwnedKit(currentUser(req).id, String(req.params.id));
+    return (await jobs.expireStale({ kitId: doc._id })) > 0
+      ? findOwnedKit(doc.userId, String(doc._id))
+      : doc;
+  };
 
   const detail = async (doc: KitDoc) => toDetail(doc, await findLatestJob(doc._id));
 
@@ -89,11 +95,12 @@ export function kitsRouter(config: ApiConfig, jobs: JobRunner): Router {
   // ---- kits ---------------------------------------------------------------------------
 
   router.get('/', async (req, res) => {
+    await jobs.expireStale({ userId: currentUser(req).id });
     const docs = await Kit.find({ userId: currentUser(req).id })
       .sort({ createdAt: -1 })
       .lean<KitDoc[]>();
-    const jobs = await Promise.all(docs.map((doc) => findLatestJob(doc._id)));
-    res.json({ kits: docs.map((doc, i) => toSummary(doc, jobs[i] ?? null)) });
+    const latestJobs = await Promise.all(docs.map((doc) => findLatestJob(doc._id)));
+    res.json({ kits: docs.map((doc, i) => toSummary(doc, latestJobs[i] ?? null)) });
   });
 
   router.post('/', async (req, res) => {
