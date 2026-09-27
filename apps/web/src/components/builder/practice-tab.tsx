@@ -17,6 +17,30 @@ const REASON_LABELS: Record<WeakReason, string> = {
 const linkButton =
   'inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium';
 
+/** "1 requirement has", "2 requirements have". */
+const requirementsHave = (n: number) => (n === 1 ? '1 requirement has' : `${n} requirements have`);
+
+/** What has been practised, then only the problems that exist, one short sentence each. */
+function summary(report: WeakSpotsReport, noFlashcard: number): string[] {
+  const { practiced_flashcards: done, total_flashcards: total } = report;
+  const cards = total === 1 ? 'flashcard' : 'flashcards';
+  const sentences = [
+    done === 0
+      ? `You haven't practised any of the ${total} ${cards} yet.`
+      : done === total
+        ? `You have practised all ${total} ${cards}.`
+        : `You have practised ${done} of ${total} ${cards}; ${total - done} to go.`,
+  ];
+  if (report.counts.low_confidence > 0) {
+    sentences.push(`${requirementsHave(report.counts.low_confidence)} low confidence.`);
+  }
+  if (report.counts.uncovered > 0) {
+    sentences.push(`${requirementsHave(report.counts.uncovered)} no question.`);
+  }
+  if (noFlashcard > 0) sentences.push(`${requirementsHave(noFlashcard)} no flashcard.`);
+  return sentences;
+}
+
 /** Weak Spots: readiness and weak areas, calculated by code from the user's own practice. */
 export function PracticeTab() {
   const { id, kit } = useBuilder();
@@ -37,6 +61,7 @@ export function PracticeTab() {
   const report = weakSpots.data;
   const weak = report.requirements.filter((r) => r.weak);
   const hasWeakCards = weak.some((r) => r.flashcards > 0);
+  const noFlashcard = weak.filter((r) => r.reasons.includes('no_flashcard')).length;
 
   return (
     <div className="space-y-5">
@@ -55,16 +80,10 @@ export function PracticeTab() {
         </div>
         <div className="flex-1 space-y-1">
           <h2 className="text-base font-semibold text-slate-900">Readiness</h2>
-          <p className="text-sm text-slate-600">
-            {report.practiced_flashcards} of {report.total_flashcards} flashcards practised.{' '}
-            {report.counts.low_confidence} requirement(s) with low confidence,{' '}
-            {report.counts.uncovered} without a question,{' '}
-            {weak.filter((r) => r.reasons.includes('no_flashcard')).length} without a flashcard,{' '}
-            {report.counts.unpracticed} card(s) not yet practised.
-          </p>
+          <p className="text-sm text-slate-600">{summary(report, noFlashcard).join(' ')}</p>
           <p className="text-xs text-slate-500">
-            Your average confidence across the role&apos;s requirements. Must-haves count twice;
-            requirements not yet practised count as 0%.
+            Readiness is your average confidence across all the role&apos;s requirements, with
+            must-haves counted twice. A requirement you haven&apos;t practised yet counts as 0%.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:w-48">
@@ -81,6 +100,13 @@ export function PracticeTab() {
           >
             <Target className="size-4" aria-hidden /> Practise weak areas
           </Link>
+          {!hasWeakCards ? (
+            <p className="text-xs text-slate-500">
+              {weak.length === 0
+                ? 'No weak areas to practise yet.'
+                : 'Your weak requirements have no flashcards yet. Add one on the Flashcards tab.'}
+            </p>
+          ) : null}
         </div>
       </Card>
 
@@ -117,6 +143,7 @@ export function PracticeTab() {
         </Card>
         <Card className="p-5">
           <h3 className="text-sm font-semibold text-slate-900">Confidence by category</h3>
+          <p className="mt-0.5 text-xs text-slate-500">From the cards you have practised.</p>
           <ul className="mt-3 space-y-3">
             {report.categories.map((category) => (
               <li key={category.category}>
