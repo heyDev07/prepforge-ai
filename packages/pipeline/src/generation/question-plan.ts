@@ -7,7 +7,9 @@
  *                  (falls back to all requirements)
  *   system-design  technical + domain requirements   junior 1 · mid/unspecified 2 · senior+ 3 (0 if none),
  *                  +1 when the research describes a system design round
- *   company-fit    all requirements                  3, or 2 when research is thin
+ *   company-fit    behavioural + domain requirements 3, or 2 when research is thin
+ *                  (all requirements if there are none; no must-haves to cover, so the
+ *                  questions stay about the company instead of becoming technical ones)
  */
 import type { InterviewFormat } from '../research/interview-process';
 import type { QuestionCategory, Requirement, RequirementKind } from '@prepforge/shared';
@@ -87,8 +89,24 @@ export function planQuestions(
             (options.interviewFormats?.includes('system-design') ? 1 : 0),
       technical,
     ),
-    plan('company-fit', options.researchIsThin ? 2 : 3, requirements),
+    companyFitPlan(requirements, options.researchIsThin ? 2 : 3),
   ];
+}
+
+/**
+ * Company fit links behavioural and domain requirements, so its questions are about working at
+ * the company rather than more technical questions. A JD with only technical requirements
+ * falls back to all of them.
+ */
+function companyFitPlan(requirements: Requirement[], count: number): CategoryPlan {
+  const nonTechnical = requirements.filter((r) => r.kind !== 'technical');
+  const eligible = nonTechnical.length > 0 ? nonTechnical : requirements;
+  return {
+    ...plan('company-fit', count, eligible),
+    mustIds: [],
+    allowedKinds:
+      nonTechnical.length > 0 ? ['behavioural', 'domain'] : ALLOWED_KINDS['company-fit'],
+  };
 }
 
 /** The category a gap-fill question for this requirement belongs to. */

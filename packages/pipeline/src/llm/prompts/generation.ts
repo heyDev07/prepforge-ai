@@ -14,7 +14,7 @@ Rules:
 1. Use only facts supported by the provided sources. Cite every source you used by its label (S1, S2, P1, ...) in "cited_sources" only; never write labels in the text itself.
 2. "what_they_do": 1–2 sentences on what the company appears to do (products, customers). If the sources do not say, write "The research did not find enough information to describe what the company does."
 3. "summary": 3–6 sentences of research-backed information useful in an interview: products and customers, mission or values, engineering practices, team or hiring information. Use cautious wording such as "appears to" or "according to its careers page".
-4. Describe an interview process only if a source explicitly describes it. P-labelled sources are third-party public discussion: attribute them (for example "candidates on Hacker News report ...").
+4. Describe an interview process only if a source explicitly describes it. P-labelled sources are third-party public discussion: attribute them (for example "candidates on Hacker News report ..."). Prefer reports about this role or similar roles; leave out reports about clearly different roles (for example a frontend interview when the role is backend), or say plainly which role they describe.
 5. Never invent numbers, names, dates, products or claims. Do not pad the brief with generic statements.
 6. The JD source describes the role; use it only for context about the role, not as evidence about the company unless it states company facts.
 
@@ -44,8 +44,13 @@ const CATEGORY_GUIDANCE: Record<QuestionCategory, string> = {
   'system-design':
     'System design questions ask the candidate to design a system relevant to this role and company, exercising the technical and domain requirements. Answer outlines cover clarifying requirements, core components, data model, scaling, failure handling and trade-offs.',
   'company-fit':
-    'Company-fit questions explore motivation and alignment with THIS company, grounded in the research sources (what it does, mission, values, team, hiring information). Avoid generic questions that would fit any company when research is available, and never state company facts that the sources do not support.',
+    'Company-fit questions are about THIS company, not about technology: why the candidate wants to work here, how they relate to its products, customers, mission, values or ways of working, and how their experience fits the team. Name the company and ground each question in something specific from the COMPANY or research sources. Never write a technical, coding or system design question in this category; those are asked elsewhere. Avoid generic questions that would fit any company when research is available, and never state company facts that the sources do not support.',
 };
+
+const MUST_FIRST_RULE =
+  '3. Cover the must-have requirements first: every must-have requirement listed should be referenced by at least one question.';
+const COMPANY_FIT_LINK_RULE =
+  "3. Link each question to the one or two requirements it relates to most, preferring behavioural and domain requirements. Covering every requirement is not this category's job.";
 
 export function questionsSystem(category: QuestionCategory, mode: 'plan' | 'gap_fill'): string {
   const countRule =
@@ -58,11 +63,12 @@ ${CATEGORY_GUIDANCE[category]}
 Rules:
 ${countRule}
 2. Each question references 1–3 requirement IDs, copied exactly from the REQUIREMENTS source (for example "r2"). Only reference requirements the question genuinely tests.
-3. Cover the must-have requirements first: every must-have requirement listed should be referenced by at least one question.
-4. "answer_outline": 2–5 short bullet points describing what a strong answer covers, not a full script. Never write requirement IDs inside the prompt or outline text.
-5. "difficulty": 1 (warm-up), 2 (standard) or 3 (hard), appropriate to the seniority.
-6. Do not repeat or closely paraphrase anything in the EXISTING_QUESTIONS source.
-7. Interview process: when the task names interview formats this company describes (for example a take-home assignment or a system design round), prepare the candidate for those rounds: write questions in the style of those rounds and name the round in the answer outline where it helps. INTERVIEW_PROCESS and INTERVIEW_DISCUSSION sources show how the company describes its process. When no format is named, do not assume any particular process.
+${category === 'company-fit' && mode === 'plan' ? COMPANY_FIT_LINK_RULE : MUST_FIRST_RULE}
+4. Ask the way a real interviewer would. Never restate a requirement or the candidate's experience as a preamble, for example "With over 5 years of backend experience, how would you ...": ask the question directly and let it show the depth that experience brings.
+5. "answer_outline": 2–5 short bullet points describing what a strong answer covers, not a full script. Never write requirement IDs inside the prompt or outline text.
+6. "difficulty": 1 (warm-up), 2 (standard) or 3 (hard), appropriate to the seniority.
+7. Do not repeat or closely paraphrase anything in the EXISTING_QUESTIONS source.
+8. Interview process: when the task names interview formats this company describes (for example a take-home assignment or a system design round), prepare the candidate for those rounds: write questions in the style of those rounds and name the round in the answer outline where it helps. INTERVIEW_PROCESS and INTERVIEW_DISCUSSION sources show how the company describes its process. When no format is named, do not assume any particular process.
 
 ${DATA_HANDLING_RULES}
 
@@ -95,6 +101,8 @@ export function buildQuestionsUser(options: {
   /** Interview formats found by code (fixed labels) and the excerpts describing the process. */
   process?: { formats: string[]; sources: UntrustedSource[] };
   mustIds: string[];
+  /** Company-fit only: the company every question must be about. */
+  companyName?: string;
 }): string {
   const sources = [
     options.role,
@@ -109,6 +117,9 @@ export function buildQuestionsUser(options: {
     options.count !== null
       ? `Write exactly ${options.count} ${options.category} questions.`
       : `Write one ${options.category} question for each requirement in TARGET_REQUIREMENTS.`;
+  const company = options.companyName
+    ? `\nEvery question is about working at ${options.companyName}: name ${options.companyName} in each question and tie it to something specific the COMPANY or research sources say (a product, customers, mission, values, engineering practices or hiring process).`
+    : '';
   const must =
     options.mustIds.length > 0
       ? `\nMust-have requirement IDs to cover first: ${options.mustIds.join(', ')}.`
@@ -120,7 +131,7 @@ export function buildQuestionsUser(options: {
       : "\nThe research does not describe this company's interview format.";
   return `${renderUntrusted(sources, { perSourceChars: 8_000, totalChars: 22_000 })}
 
-${task}${must}${process}`;
+${task}${company}${must}${process}`;
 }
 
 // ---------------------------------------------------------------------------------------

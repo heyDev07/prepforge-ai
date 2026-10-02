@@ -41,6 +41,22 @@ export type RawFlashcard = z.infer<typeof RawFlashcardSchema>;
 /** Requirement IDs the model sometimes leaks into prose: "(r5)", "(r1, r2)", "[r3]". */
 const LEAKED_IDS = /\s*[([]\s*r\d+(?:\s*,\s*r\d+)*\s*[)\]]/gi;
 
+/**
+ * A preamble that restates the candidate's experience instead of asking: "With over 5 years of
+ * backend experience, how would you ..." or "Given your extensive background in X, how do you ...".
+ */
+const EXPERIENCE_PREAMBLE =
+  /^(?:(?:with|having)\s+(?:over\s+|more\s+than\s+)?\d+\+?\s*years?\b[^,?]{0,100}|(?:given|with|drawing\s+on)\s+your\s+(?:extensive|strong|deep|solid|significant|considerable|proven)\s+(?:\w+\s+)?(?:background|experience|expertise)\b[^,?]{0,100}),\s*/i;
+
+/** Drops an experience preamble when a real question follows it. */
+export function stripExperiencePreamble(prompt: string): string {
+  const match = EXPERIENCE_PREAMBLE.exec(prompt);
+  if (!match) return prompt;
+  const rest = prompt.slice(match[0].length).trim();
+  if (rest.length < 20) return prompt;
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
+}
+
 function cleanText(text: string, max: number): string {
   return truncate(
     stripInvisible(text)
@@ -93,7 +109,7 @@ export function sanitizeQuestions(
   for (const item of raw) {
     if (result.length >= options.limit) break;
     const requirementIds = sanitizeRequirementIds(item.requirement_ids, options);
-    const prompt = cleanText(item.prompt, 600);
+    const prompt = stripExperiencePreamble(cleanText(item.prompt, 600));
     const answerOutline = cleanText(item.answer_outline, 2_000);
     const key = normalizeForMatch(prompt);
     if (requirementIds.length === 0 || !prompt || !answerOutline || seen.has(key)) continue;

@@ -102,6 +102,8 @@ export async function generateCategoryQuestions(
       // company-fit already receives the interview pages among its research sources
       process: processFor(ctx, plan.category !== 'company-fit'),
       mustIds: plan.mustIds,
+      companyName:
+        plan.category === 'company-fit' && ctx.brief ? sanitizeName(ctx.companyName) : undefined,
     }),
     schema: QuestionsOutputSchema,
     temperature: 0.4,
@@ -109,14 +111,67 @@ export async function generateCategoryQuestions(
     signal: options.signal,
   });
 
-  return sanitizeQuestions(raw.questions, {
+  const questions = sanitizeQuestions(raw.questions, {
     category: plan.category,
     requirements: eligible,
     allowedKinds: plan.allowedKinds,
     maxLinks: MAX_LINKS,
     existingPrompts: existing.map((q) => q.prompt),
-    limit: plan.count,
+    limit: plan.count * 2,
   });
+  const kept = plan.category === 'company-fit' ? aboutTheCompany(questions, ctx) : questions;
+  return kept.slice(0, plan.count);
+}
+
+/**
+ * A company-fit question must be about this company, so it has to name it. Questions that
+ * don't are dropped, unless none would be left (for example when research found nothing).
+ */
+export function aboutTheCompany(
+  questions: NewQuestion[],
+  ctx: Pick<GenerationContext, 'companyName'>,
+): NewQuestion[] {
+  const name = companyNameWords(ctx.companyName);
+  if (name.length === 0) return questions;
+  const named = questions.filter((q) => {
+    const prompt = q.prompt.toLowerCase();
+    return name.some((word) => new RegExp(`\\b${word}`).test(prompt));
+  });
+  return named.length > 0 ? named : questions;
+}
+
+const GENERIC_NAME_WORDS = new Set([
+  'the',
+  'inc',
+  'ltd',
+  'llc',
+  'gmbh',
+  'corp',
+  'company',
+  'labs',
+  'group',
+  'technologies',
+  'technology',
+  'software',
+  'not',
+  'specified',
+]);
+
+/** The company name as it appears in our own instruction line: plain text, short. */
+function sanitizeName(name: string): string | undefined {
+  const clean = name
+    .replace(/[^\p{L}\p{N} .&'-]/gu, '')
+    .trim()
+    .slice(0, 80);
+  return companyNameWords(clean).length > 0 ? clean : undefined;
+}
+
+/** Distinctive words of a company name: "Acme Robotics GmbH" → ["acme", "robotics"]. */
+function companyNameWords(companyName: string): string[] {
+  return companyName
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 3 && !GENERIC_NAME_WORDS.has(word));
 }
 
 function namedGenerator(category: QuestionCategory) {

@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { runCoverageLoop } from '../src/coverage/coverage-loop';
 import { flashcardCount } from '../src/generation/flashcards';
 import { planQuestions, systemDesignCount } from '../src/generation/question-plan';
-import { sanitizeQuestions, sanitizeRequirementIds } from '../src/generation/sanitize';
+import { aboutTheCompany } from '../src/generation/questions';
+import {
+  sanitizeQuestions,
+  sanitizeRequirementIds,
+  stripExperiencePreamble,
+} from '../src/generation/sanitize';
 import { buildKit, question, req } from './support/kits';
 
 describe('planQuestions (code decides counts)', () => {
@@ -24,6 +29,20 @@ describe('planQuestions (code decides counts)', () => {
     ]);
     expect(plans[0]!.requirementIds).toEqual(['r1', 'r2', 'r3']);
     expect(plans[0]!.mustIds).toEqual(['r1', 'r2']);
+  });
+
+  it('keeps company-fit about the company: behavioural and domain links, no must-haves to cover', () => {
+    const fit = planQuestions(requirements, 'Senior', { researchIsThin: false })[3]!;
+    expect(fit.category).toBe('company-fit');
+    expect(fit.mustIds).toEqual([]);
+    expect(fit.requirementIds).toEqual(['r4', 'r3', 'r5']);
+    expect(fit.allowedKinds).toEqual(['behavioural', 'domain']);
+  });
+
+  it('lets company-fit link technical requirements when the JD has nothing else', () => {
+    const fit = planQuestions([req(1), req(2)], 'Senior', { researchIsThin: false })[3]!;
+    expect(fit.requirementIds).toEqual(['r1', 'r2']);
+    expect(fit.allowedKinds).toContain('technical');
   });
 
   it('skips technical and system-design questions when the JD has no technical requirements', () => {
@@ -128,6 +147,85 @@ describe('leaked requirement IDs', () => {
       'Given your background as an engineer and as a manager, how would you lead this team?',
     );
     expect(q!.answer_outline).toBe('- Links management to delivery');
+  });
+});
+
+describe('stripExperiencePreamble', () => {
+  it.each([
+    [
+      'With over 5 years of backend development experience, how would you refactor a legacy payment pipeline?',
+      'How would you refactor a legacy payment pipeline?',
+    ],
+    [
+      'Given your extensive background in backend development, how do you approach scaling a monolith?',
+      'How do you approach scaling a monolith?',
+    ],
+    [
+      'Having 3+ years with React, what breaks first in a large form?',
+      'What breaks first in a large form?',
+    ],
+  ])('%s', (input, expected) => {
+    expect(stripExperiencePreamble(input)).toBe(expected);
+  });
+
+  it('leaves ordinary questions alone', () => {
+    const plain = 'With a queue between the services, how would you keep payments exactly-once?';
+    expect(stripExperiencePreamble(plain)).toBe(plain);
+    expect(stripExperiencePreamble('Tell me about a time you mentored an engineer.')).toBe(
+      'Tell me about a time you mentored an engineer.',
+    );
+  });
+
+  it('is applied to generated question prompts', () => {
+    const [q] = sanitizeQuestions(
+      [
+        {
+          prompt: 'With over 5 years of experience, how do you design idempotent payment APIs?',
+          answer_outline: '- keys',
+          difficulty: 2,
+          requirement_ids: ['r1'],
+        },
+      ],
+      {
+        category: 'technical',
+        requirements: [req(1)],
+        allowedKinds: ['technical', 'domain'],
+        maxLinks: 3,
+        existingPrompts: [],
+        limit: 5,
+      },
+    );
+    expect(q!.prompt).toBe('How do you design idempotent payment APIs?');
+  });
+});
+
+describe('aboutTheCompany', () => {
+  const fit = (prompt: string) => ({
+    category: 'company-fit' as const,
+    prompt,
+    answer_outline: '- x',
+    difficulty: 2 as const,
+    requirement_ids: ['r1'],
+  });
+
+  it('drops company-fit questions that never name the company', () => {
+    const kept = aboutTheCompany(
+      [
+        fit('What draws you to Razorpay’s mission of simplifying payments?'),
+        fit('What practices keep PCI DSS data secure without adding latency?'),
+        fit('How would you contribute to RAZORPAY engineering culture?'),
+      ],
+      { companyName: 'Razorpay Software Pvt Ltd' },
+    );
+    expect(kept.map((q) => q.prompt)).toEqual([
+      'What draws you to Razorpay’s mission of simplifying payments?',
+      'How would you contribute to RAZORPAY engineering culture?',
+    ]);
+  });
+
+  it('keeps the questions when none name the company rather than leaving the category empty', () => {
+    const questions = [fit('Why this role?')];
+    expect(aboutTheCompany(questions, { companyName: 'Acme Robotics' })).toEqual(questions);
   });
 });
 
