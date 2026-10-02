@@ -109,7 +109,7 @@ export async function saveKit(
   const updated = await Kit.findOneAndUpdate(
     { _id: doc._id, userId: doc.userId, revision: expected },
     { $set: set, $inc: { revision: 1 } },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<KitDoc>();
   if (!updated) {
     throw new AppError('CONFLICT', 'The kit was changed elsewhere. Reload and try again.', {

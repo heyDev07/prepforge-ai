@@ -311,7 +311,7 @@ export class JobRunner {
     const job = await GenerationJobModel.findOneAndUpdate(
       { _id: jobId, status: 'queued' },
       { $set: { status: 'running', startedAt: new Date(), heartbeatAt: new Date() } },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<JobDoc>();
     if (!job) return;
     const kit = await Kit.findById(job.kitId).lean<KitDoc>();
