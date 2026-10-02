@@ -170,6 +170,11 @@ describe('scoreLink', () => {
     expect(score('/our-team', 'Meet the team')).toBeGreaterThan(0);
   });
 
+  it('does not treat a product with "company" in its name as a company page', () => {
+    expect(score('/rize/company-registration/', 'Company Registration', 2)).toBeLessThanOrEqual(0);
+    expect(score('/company', 'Company')).toBeGreaterThan(0);
+  });
+
   it('excludes downloads and assets', () => {
     expect(isExcludedResource(new URL('https://acme.com/handbook.pdf'))).toBe(true);
     expect(isExcludedResource(new URL('https://acme.com/handbook'))).toBe(false);
@@ -191,6 +196,8 @@ describe('classifyPage', () => {
     ['/company/team', 'about'],
     ['/pricing', 'other'],
     ['/microsoft-teams/premium', 'other'],
+    ['/company', 'about'],
+    ['/rize/company-registration', 'other'],
   ])('%s → %s', (path, expected) => {
     expect(classify(path)).toBe(expected);
   });

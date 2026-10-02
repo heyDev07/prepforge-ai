@@ -7,9 +7,12 @@
  *           − 2 · depth − 1 (query string) − 1 (more than 4 path segments)
  *           − negative keyword weights
  */
-import { matchesStem, pathTokens, textTokens, urlTokens } from './site';
+import { matchesStem, pathSegments, pathTokens, textTokens, urlTokens } from './site';
 
-/** Keyword stems (matched as token prefixes) and their weights. */
+/**
+ * Keyword stems (matched as token prefixes) and their weights. Generic words that also appear
+ * in product names ("company registration", "Microsoft Teams") match only exactly; see matchesStem.
+ */
 export const POSITIVE_KEYWORDS: ReadonlyArray<readonly [string, number]> = [
   ['career', 10],
   ['interview', 10],
@@ -26,7 +29,7 @@ export const POSITIVE_KEYWORDS: ReadonlyArray<readonly [string, number]> = [
   ['handbook', 7],
   ['positions', 7],
   ['opportunit', 7],
-  ['company', 6],
+  ['company=', 6],
   ['values', 6],
   ['mission', 5],
   ['team$', 5],
@@ -68,14 +71,15 @@ export interface LinkScore {
 
 function keywordScore(
   tokens: string[],
+  segments: string[],
   keywords: ReadonlyArray<readonly [string, number]>,
 ): { total: number; matched: string[] } {
   let total = 0;
   const matched: string[] = [];
   for (const [stem, weight] of keywords) {
-    if (matchesStem(tokens, stem)) {
+    if (matchesStem(tokens, stem, segments)) {
       total += weight;
-      matched.push(stem.replace(/\$$/, ''));
+      matched.push(stem.replace(/[$=]$/, ''));
     }
   }
   return { total: Math.min(total, MAX_SIDE_SCORE), matched };
@@ -95,10 +99,15 @@ export function scoreLink(
 
   // the subdomain counts like the path: careers.acme.com is as clear as acme.com/careers
   const location = urlTokens(link.url);
-  const pathPositive = keywordScore(location, POSITIVE_KEYWORDS);
-  const anchorPositive = keywordScore(anchor, POSITIVE_KEYWORDS);
-  const pathNegative = keywordScore(location, NEGATIVE_KEYWORDS);
-  const anchorNegative = keywordScore(anchor, NEGATIVE_KEYWORDS);
+  const segments = pathSegments(link.url.pathname);
+  // the whole anchor text or title counts as one segment: "Company" yes, "Company Registration" no
+  const anchorSegments = [link.text, link.title]
+    .map((t) => textTokens(t).join(' '))
+    .filter(Boolean);
+  const pathPositive = keywordScore(location, segments, POSITIVE_KEYWORDS);
+  const anchorPositive = keywordScore(anchor, anchorSegments, POSITIVE_KEYWORDS);
+  const pathNegative = keywordScore(location, segments, NEGATIVE_KEYWORDS);
+  const anchorNegative = keywordScore(anchor, anchorSegments, NEGATIVE_KEYWORDS);
 
   let score = pathPositive.total + 0.8 * anchorPositive.total;
   score -= Math.max(pathNegative.total, anchorNegative.total);

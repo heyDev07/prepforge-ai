@@ -80,15 +80,37 @@ export function urlTokens(url: URL): string[] {
 
 /**
  * Whether a keyword stem matches: a token starting with the stem ("career" → "careers"), a long
- * stem inside the joined tokens ("workwithus"), or, for stems ending in "$", an exact token
- * ("team$" matches "team" but not "teams", which is often a product name).
+ * stem inside the joined tokens ("workwithus"), for stems ending in "$" an exact token
+ * ("team$" matches "team" but not "teams", which is often a product name), or, for stems
+ * ending in "=", a whole segment ("company=" matches /company but not /company-registration,
+ * a product page).
  */
-export function matchesStem(tokens: readonly string[], stem: string): boolean {
+export function matchesStem(
+  tokens: readonly string[],
+  stem: string,
+  segments: readonly string[] = [],
+): boolean {
+  if (stem.endsWith('=')) return segments.includes(stem.slice(0, -1));
   if (stem.endsWith('$')) return tokens.includes(stem.slice(0, -1));
   return (
     tokens.some((token) => token.startsWith(stem)) ||
     (stem.length > 6 && tokens.join('').includes(stem))
   );
+}
+
+/** Lower-cased path segments with separators normalised: "/Company/About_Us" → ["company", "about us"]. */
+export function pathSegments(pathname: string): string[] {
+  let decoded = pathname;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    // keep the raw path
+  }
+  return decoded
+    .toLowerCase()
+    .split('/')
+    .map((segment) => textTokens(segment).join(' '))
+    .filter(Boolean);
 }
 
 /** Lower-cased word tokens of free text. */

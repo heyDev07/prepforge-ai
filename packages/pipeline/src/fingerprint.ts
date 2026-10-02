@@ -37,7 +37,7 @@ export function computeFingerprint(jd: string, companyUrl: string): string {
  * this whenever extraction or crawling changes what it returns; otherwise results computed by
  * the old code keep being served (for up to a day) after a fix ships.
  */
-export const CACHE_VERSION = 2;
+export const CACHE_VERSION = 3;
 
 /** Cache keys: extraction depends only on the JD, research only on the URL. */
 export const extractionCacheKey = (jd: string) =>
