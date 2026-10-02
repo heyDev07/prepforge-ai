@@ -14,6 +14,8 @@ const apiUrl = (process.env.API_URL ?? 'http://localhost:4000').replace(/\/+$/, 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // keep the dev server from writing AI-assistant rule files into the app
+  agentRules: false,
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${apiUrl}/api/:path*` }];
   },
