@@ -12,8 +12,11 @@ export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const hasSession = request.cookies.has(SESSION_COOKIE);
 
+  // signed-in visitors skip the landing page
   if (pathname === '/') {
-    return NextResponse.redirect(new URL(hasSession ? '/dashboard' : '/login', request.url));
+    return hasSession
+      ? NextResponse.redirect(new URL('/dashboard', request.url))
+      : NextResponse.next();
   }
   if (
     !hasSession &&
