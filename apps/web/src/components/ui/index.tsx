@@ -13,10 +13,9 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react';
+import { cx } from '@/lib/cx';
 
-export function cx(...classes: (string | false | null | undefined)[]): string {
-  return classes.filter(Boolean).join(' ');
-}
+export { cx };
 
 // ---------------------------------------------------------------------------------------
 // buttons
@@ -25,15 +24,16 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md';
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-600/60',
+  primary:
+    'bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-ember hover:from-brand-600 hover:to-brand-700 disabled:from-brand-600/60 disabled:to-brand-600/60 disabled:shadow-none',
   secondary:
-    'bg-white text-slate-800 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 disabled:text-slate-400',
+    'bg-white text-slate-800 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 hover:ring-slate-400 disabled:text-slate-400',
   ghost: 'text-slate-700 hover:bg-slate-100 disabled:text-slate-400',
-  danger: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-600/60',
+  danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700 disabled:bg-red-600/60',
 };
 const SIZES: Record<Size, string> = {
-  sm: 'h-8 gap-1.5 px-2.5 text-sm',
-  md: 'h-10 gap-2 px-4 text-sm',
+  sm: 'h-8 gap-1.5 rounded-md px-2.5 text-sm',
+  md: 'h-10 gap-2 rounded-lg px-4 text-sm',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -64,7 +64,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cx(
-        'inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors disabled:cursor-not-allowed',
+        'inline-flex shrink-0 items-center justify-center font-medium transition-all active:translate-y-px disabled:cursor-not-allowed disabled:active:translate-y-0',
         VARIANTS[variant],
         SIZES[size],
         className,
@@ -81,7 +81,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 // form fields
 
 const fieldClass =
-  'block w-full rounded-md border-0 bg-white px-3 py-2 text-sm text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-600 disabled:bg-slate-50';
+  'block w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 transition-shadow placeholder:text-slate-400 hover:ring-slate-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 disabled:bg-slate-50';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
@@ -171,7 +171,7 @@ export function Badge({
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cx('rounded-lg bg-white shadow-sm ring-1 ring-slate-200', className)}
+      className={cx('rounded-xl bg-white shadow-card ring-1 ring-slate-200/80', className)}
       {...props}
     />
   );
@@ -201,9 +201,13 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-      {icon ? <div className="text-slate-400">{icon}</div> : null}
-      <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center">
+      {icon ? (
+        <div className="grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 text-brand-600 ring-1 ring-brand-200">
+          {icon}
+        </div>
+      ) : null}
+      <h3 className="font-display text-lg font-semibold text-slate-900">{title}</h3>
       {description ? <p className="max-w-md text-sm text-slate-600">{description}</p> : null}
       {action}
     </div>
@@ -230,7 +234,7 @@ export function Alert({
   return (
     <div
       role={tone === 'red' ? 'alert' : 'status'}
-      className={cx('rounded-lg p-4 ring-1 ring-inset', styles)}
+      className={cx('rounded-xl p-4 ring-1 ring-inset', styles)}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1 text-sm">
@@ -282,10 +286,10 @@ export function ConfirmDialog({
         event.preventDefault();
         onCancel();
       }}
-      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-lg p-0 shadow-xl backdrop:bg-slate-900/40"
+      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-xl p-0 shadow-xl backdrop:bg-slate-950/50 backdrop:backdrop-blur-sm"
     >
       <div className="space-y-3 p-5">
-        <h2 id={titleId} className="text-base font-semibold text-slate-900">
+        <h2 id={titleId} className="font-display text-lg font-semibold text-slate-900">
           {title}
         </h2>
         {description ? <div className="text-sm text-slate-600">{description}</div> : null}
