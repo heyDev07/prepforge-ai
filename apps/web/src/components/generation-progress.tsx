@@ -46,27 +46,59 @@ function rows(job: GenerationJob): Row[] {
 }
 
 export function StageList({ job }: { job: GenerationJob }) {
+  const all = rows(job);
   return (
-    <ol className="space-y-1" aria-label="Generation progress">
-      {rows(job).map((row) => {
+    <ol className="relative" aria-label="Generation progress">
+      {all.map((row, index) => {
         const { icon: Icon, className, text } = ICONS[row.status];
+        const last = index === all.length - 1;
         return (
           <li
             key={row.key}
-            className={cx(
-              'flex items-start gap-3 rounded-md px-2 py-1.5',
-              row.status === 'running' && 'bg-brand-50',
-              row.status === 'failed' && 'bg-red-50',
-            )}
+            className="relative flex gap-4 pb-1"
             aria-current={row.status === 'running' ? 'step' : undefined}
           >
-            <Icon className={cx('mt-0.5 size-4 shrink-0', className)} aria-hidden />
-            <div className="min-w-0 text-sm">
-              <p className={cx(row.status === 'pending' ? 'text-slate-400' : 'text-slate-800')}>
+            {!last ? (
+              <span
+                aria-hidden
+                className={cx(
+                  'absolute top-8 bottom-0 left-[15px] w-px',
+                  row.status === 'completed' || row.status === 'skipped'
+                    ? 'bg-emerald-200'
+                    : 'bg-slate-200',
+                )}
+              />
+            ) : null}
+            <span
+              className={cx(
+                'relative z-10 mt-1 grid size-[31px] shrink-0 place-items-center rounded-full ring-1',
+                row.status === 'completed' && 'bg-emerald-50 ring-emerald-200',
+                row.status === 'running' &&
+                  'bg-brand-50 ring-brand-300 shadow-[0_0_0_4px_rgb(251_146_60/0.15)]',
+                row.status === 'pending' && 'bg-white ring-slate-200',
+                row.status === 'failed' && 'bg-red-50 ring-red-200',
+                row.status === 'skipped' && 'bg-slate-50 ring-slate-200',
+              )}
+            >
+              <Icon className={cx('size-4', className)} aria-hidden />
+            </span>
+            <div
+              className={cx(
+                'min-w-0 flex-1 rounded-lg px-3 py-2 text-sm',
+                row.status === 'running' && 'bg-brand-50/70',
+                row.status === 'failed' && 'bg-red-50',
+              )}
+            >
+              <p
+                className={cx(
+                  'font-medium',
+                  row.status === 'pending' ? 'text-slate-400' : 'text-slate-800',
+                )}
+              >
                 {stageLabel(row.stage, row.occurrence)}
                 <span className="sr-only"> — {text}</span>
               </p>
-              {row.detail ? <p className="text-xs text-slate-500">{row.detail}</p> : null}
+              {row.detail ? <p className="mt-0.5 text-xs text-slate-500">{row.detail}</p> : null}
             </div>
           </li>
         );

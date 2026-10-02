@@ -10,8 +10,10 @@ import { useBuilder, useRequirementMap } from './context';
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
     <Card className="p-4">
-      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
+      <p className="font-mono text-[11px] font-medium tracking-widest text-slate-500 uppercase">
+        {label}
+      </p>
+      <p className="mt-1.5 font-display text-3xl font-bold text-slate-900 tabular-nums">{value}</p>
       {sub ? <p className="mt-0.5 text-xs text-slate-500">{sub}</p> : null}
     </Card>
   );

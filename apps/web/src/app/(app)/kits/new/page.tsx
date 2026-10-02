@@ -53,7 +53,9 @@ export default function NewKitPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">New prep kit</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+          New prep kit
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
           PrepForge extracts the requirements from the job description, researches the company, and
           builds questions, flashcards and a schedule. Nothing is invented: every requirement comes

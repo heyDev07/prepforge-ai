@@ -75,7 +75,9 @@ export function PracticeTab() {
           aria-label={`Readiness ${report.readiness} percent`}
         >
           <div className="grid size-19 place-items-center rounded-full bg-white">
-            <span className="text-xl font-semibold text-slate-900">{report.readiness}%</span>
+            <span className="font-display text-2xl font-bold text-slate-900 tabular-nums">
+              {report.readiness}%
+            </span>
           </div>
         </div>
         <div className="flex-1 space-y-1">

@@ -306,7 +306,7 @@ function PracticeSession({ id }: { id: string }) {
         />
       ) : !card ? (
         <EmptyState
-          icon={<Target className="size-10" aria-hidden />}
+          icon={<Target className="size-7" aria-hidden />}
           title={mode === 'weak' ? 'No weak areas to practise' : 'No flashcards to practise'}
           description={
             mode === 'weak'

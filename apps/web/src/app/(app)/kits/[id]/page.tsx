@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense, use, useEffect } from 'react';
 import { KitBuilder } from '@/components/builder/kit-builder';
+import { CompanyAvatar } from '@/components/company-avatar';
 import { JobError, StageList } from '@/components/generation-progress';
 import { Card, EmptyState, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -77,23 +78,45 @@ function GenerationView({ id }: { id: string }) {
       >
         <ArrowLeft className="size-4" aria-hidden /> Dashboard
       </Link>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          {job?.status === 'failed' ? 'Generation stopped' : 'Building your prep kit'}
-        </h1>
-        {input ? (
-          <p className="mt-1 text-sm text-slate-600">
-            {hostname(input.company_url)} · {input.days} {input.days === 1 ? 'day' : 'days'} · each
-            stage below runs separately, and coverage and scheduling are checked by code.
-          </p>
+      <Card className="relative overflow-hidden p-5 sm:p-6">
+        <div
+          aria-hidden
+          className="absolute -top-20 -right-16 size-56 rounded-full bg-brand-200/40 blur-3xl"
+        />
+        <div className="relative flex items-start gap-4">
+          {input ? <CompanyAvatar name={hostname(input.company_url)} /> : null}
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900">
+              {job?.status === 'failed' ? 'Generation stopped' : 'Building your prep kit'}
+            </h1>
+            {input ? (
+              <p className="mt-1 text-sm text-slate-600">
+                {hostname(input.company_url)} · {input.days} {input.days === 1 ? 'day' : 'days'} ·
+                each stage runs separately, and coverage and scheduling are checked by code.
+              </p>
+            ) : null}
+          </div>
+          {job && job.status !== 'failed' ? (
+            <span className="font-display text-2xl font-bold text-brand-600 tabular-nums">
+              {job.progress}%
+            </span>
+          ) : null}
+        </div>
+        {job && job.status !== 'failed' ? (
+          <div className="relative mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-brand-300 via-brand-500 to-brand-600 transition-all duration-700"
+              style={{ width: `${Math.max(4, job.progress)}%` }}
+            />
+          </div>
         ) : null}
-      </div>
+      </Card>
 
       {job ? (
         <JobError job={job} onRetry={() => retry.mutate(undefined)} retrying={retry.isPending} />
       ) : null}
 
-      <Card className="p-4 sm:p-5">
+      <Card className="p-4 sm:p-6">
         {job ? (
           <StageList job={job} />
         ) : (
@@ -111,7 +134,7 @@ function GenerationView({ id }: { id: string }) {
       </Card>
       <p className="text-center text-xs text-slate-500" aria-live="polite">
         {job?.status === 'running' || job?.status === 'queued'
-          ? `${job.progress}% — you can leave this page; generation continues on the server.`
+          ? 'You can leave this page. Generation continues on the server.'
           : null}
       </p>
     </div>

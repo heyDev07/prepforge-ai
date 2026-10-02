@@ -43,9 +43,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-5" noValidate>
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold text-slate-900">
-          {isLogin ? 'Sign in to PrepForge' : 'Create your account'}
+      <div className="space-y-2 pb-1">
+        <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900">
+          {isLogin ? 'Welcome back' : 'Create your account'}
         </h1>
         <p className="text-sm text-slate-600">
           {isLogin
@@ -88,7 +88,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         )}
       </Field>
 
-      <Button type="submit" variant="primary" className="w-full" loading={pending}>
+      <Button type="submit" variant="primary" className="h-11 w-full" loading={pending}>
         {isLogin ? 'Sign in' : 'Create account'}
       </Button>
 
